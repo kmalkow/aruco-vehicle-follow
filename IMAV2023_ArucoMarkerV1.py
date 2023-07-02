@@ -1,13 +1,15 @@
 # --------------------------------------------------------------------------
-# Author:       Kevin Malkow
-# Date:         02/07/23
-# Affiliation:  TU Delft, IMAV 2023
+# Author:           Kevin Malkow
+# Date:             02/07/23
+# Affiliation:      TU Delft, IMAV 2023
 #
-# Version:      1.0 
+# Version:          1.0 
 # 
 # Description:  
-# Detect Aruco marker and track it (pose estimation of camera) for images
-# only.
+# Detect Aruco marker from images.
+# 
+# Upcoming Version: 2.0
+# Detect Aruco marker from video stream.
 #  -------------------------------------------------------------------------
 
 import numpy as np
