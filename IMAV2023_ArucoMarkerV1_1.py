@@ -1,6 +1,6 @@
 # --------------------------------------------------------------------------
 # Author:           Kevin Malkow
-# Date:             02/07/23
+# Date:             04/07/23
 # Affiliation:      TU Delft, IMAV 2023
 #
 # Version:          1.1 
@@ -24,9 +24,18 @@ import cv2
 import cv2.aruco
 from pathlib import Path
 
+# -------------- Image Rescaling Function --------------
+def img_rescale(img, scale_percent):
+# Image downscaling -> USED AS IMAGE INPUT AND AFFECTS PERFORMANCE OF DETECTOR
+  scale_percent = 30 # Percent of original size
+  width = int(img.shape[1] * scale_percent / 100)
+  height = int(img.shape[0] * scale_percent / 100)
+  dim = (width, height)
+  return cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
+
 # -------------- Load Image and Resize Image --------------
 #  Define image path
-path = '/home/kevin/IMAV2023/Aruco_Marker_Pictures/04_07_2023/Pictures/Storey_1/*.JPG'   
+path = '/home/kevin/IMAV2023/Aruco_Marker_Pictures/04_07_2023/Pictures/Storey_2/*.JPG'   
 
 # Initialise counter for formatting saved images
 counter = 1
@@ -37,19 +46,15 @@ for file in glob.iglob(path):
     img = cv2.imread(file)
     # img = cv2.imread(file, cv2.IMREAD_GRAYSCALE)
 
-    # Image downscaling -> USED AS IMAGE INPUT AND AFFECTS PERFORMANCE OF DETECTOR
-    scale_percent = 30 # Percent of original size
-    width = int(img.shape[1] * scale_percent / 100)
-    height = int(img.shape[0] * scale_percent / 100)
-    dim = (width, height)
-    img = cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
+    # Image rescaling
+    img = img_rescale(img, 30)
 
 # -------------- Aruco Marker Detection --------------
     # Load dictionary for aruco marker
     arucoDictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_5X5_1000)
 
     # Initiate aruco marker detection parameters
-    arucoParameters =  cv2.aruco.DetectorParameters()
+    arucoParameters =  cv2.aruco.DetectorParameters()# Upcoming Version: 4.0
 
     # Aruco marker detection setup
     arucoDetector = cv2.aruco.ArucoDetector(arucoDictionary, arucoParameters)
@@ -78,7 +83,7 @@ for file in glob.iglob(path):
             # --------------------------------------------------------
             # UNCOMMENT TO SAVE IMAGE
             # Saving the image
-            cv2.imwrite('/home/kevin/IMAV2023/Aruco_Marker_Pictures/04_07_2023/Pictures/Storey_1/Results_SCALING_30/FALSE_DETECTIONS/FALSE_ArucoMarkerDetected_{}.JPG'.format(counter), img)
+            cv2.imwrite('/home/kevin/IMAV2023/Aruco_Marker_Pictures/04_07_2023/Pictures/Storey_2/Results_SCALING_30/FALSE_DETECTIONS/FALSE_ArucoMarkerDetected_{}.JPG'.format(counter), img)
             # --------------------------------------------------------
 
             # Remove image from memory
@@ -103,7 +108,7 @@ for file in glob.iglob(path):
             # --------------------------------------------------------
             # UNCOMMENT TO SAVE IMAGE            
             # Saving the image
-            cv2.imwrite('/home/kevin/IMAV2023/Aruco_Marker_Pictures/04_07_2023/Pictures/Storey_1/Results_SCALING_30/ArucoMarkerDetected_{}.JPG'.format(counter), img)
+            cv2.imwrite('/home/kevin/IMAV2023/Aruco_Marker_Pictures/04_07_2023/Pictures/Storey_2/Results_SCALING_30/ArucoMarkerDetected_{}.JPG'.format(counter), img)
             # --------------------------------------------------------
 
             # Remove image from memory
@@ -120,7 +125,7 @@ for file in glob.iglob(path):
         # --------------------------------------------------------
         # UNCOMMENT TO SAVE IMAGE                
         # Saving the image
-        cv2.imwrite('/home/kevin/IMAV2023/Aruco_Marker_Pictures/04_07_2023/Pictures/Storey_1/Results_SCALING_30/NOT_DETECTED/NOT_ArucoMarkerDetected_{}.JPG'.format(counter), img)
+        cv2.imwrite('/home/kevin/IMAV2023/Aruco_Marker_Pictures/04_07_2023/Pictures/Storey_2/Results_SCALING_30/NOT_DETECTED/NOT_ArucoMarkerDetected_{}.JPG'.format(counter), img)
         # --------------------------------------------------------
 
         # Remove image from memory
