@@ -10,7 +10,7 @@
 # -----------------------------------------------------------------------------------------
 
 import matplotlib.pyplot as plt
-
+import numpy as np
 
 # -------------- Data --------------
 # For 13m height:
@@ -87,20 +87,26 @@ recall_90_SCALING_4_4 = tp_90_SCALING_4_4/(tp_90_SCALING_4_4 + fn_90_SCALING_4_4
 
 # -------------- Plotting --------------
 # Plotting the points 
-plt.clf()
 
-plt.plot(recall_NO_SCALING_13, precision_NO_SCALING_13, marker='o', markerfacecolor='tab:blue', markersize=6)
-plt.plot(recall_NO_SCALING_9, precision_NO_SCALING_9, marker='o', markerfacecolor='tab:blue', markersize=6)
-plt.plot(recall_NO_SCALING_4_4, precision_NO_SCALING_4_4, marker='o', markerfacecolor='tab:blue', markersize=6)
+# plt.figure()
 
-plt.xlim([0, 105])
-plt.ylim([0, 105])
+# ax_1 = plt.plot(recall_NO_SCALING_13, precision_NO_SCALING_13, marker='o')
+# ax_2 = plt.plot(recall_NO_SCALING_9, precision_NO_SCALING_9, marker='o')
+# ax_3 = plt.plot(recall_NO_SCALING_4_4, precision_NO_SCALING_4_4, marker='o')
 
-plt.xlabel('Recall [%]')
-plt.ylabel('Precision[%]')
-plt.title('Precision-Recall Plot')
+# ax_1.legend([13], ['Height [m]'])
+
+# plt.xlim([0, 105])
+# plt.ylim([0, 105])
+
+# plt.xlabel('Recall [%]')
+# plt.ylabel('Precision[%]')
+# plt.title('Precision-Recall Plot')
   
-plt.show()
+# plt.show()
+
+# plt.cla() 
+# plt.clf() 
 
 
 
