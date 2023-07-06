@@ -3,10 +3,10 @@
 # Date:             05/07/23
 # Affiliation:      TU Delft, IMAV 2023
 #
-# Version:          2.0 
+# Version:          2.1 
 # 
 # Description:  
-# Detect Aruco marker from pre-recorded video.
+# Detect Aruco marker from video live-stream.
 # 
 # Upcoming Version: 3.0
 # Detect AND track Aruco marker from images -> requires camera calibration step (done in seperate code)
@@ -39,17 +39,14 @@ def frame_rescale(frame, scale_percent):
 #                            VIDEO PROCESSING                                #
 #  ------------------------------------------------------------------------- #
 
-# -------------- Load Video --------------
-#  Define image path
-path = '/home/kevin/IMAV2023/Aruco_Marker_Data/04_07_2023/Videos/Storey_1/2023_0704_035222_004.MP4'   
-	
-# Create a VideoCapture object and read from input file
-cap = cv2.VideoCapture(path)
+# -------------- Load Video Live-stream --------------
+# Create a VideoCapture object and read from camera (input is either 0 or 1, for first and second camera, respectively)
+cap = cv2.VideoCapture(2)
 
 # -------------- Detect Aruco Markers, Write Video, and View Video --------------
 # Check if camera opened successfully
 if (cap.isOpened()== False): 
-  print("Error opening video file or stream!")
+  print("Error: cannot open video file or stream")
  
 # Default resolutions of the frame are obtained and converted from float to integer
 frame_width = int(cap.get(3))
@@ -59,7 +56,7 @@ frame_height = int(cap.get(4))
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')
 
 # Create VideoWriter object 
-out = cv2.VideoWriter('/home/kevin/IMAV2023/Aruco_Marker_Data/04_07_2023/Videos/Storey_1/Results/ArucoMarker_Video_Detected_4_4m_2.mp4', fourcc, 30, (frame_width, frame_height))
+out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/ArucoMarker_LIVEVideo_Detected_1.mp4', fourcc, 30, (frame_width, frame_height))
 
 # Read until video is completed
 while(cap.isOpened()):
@@ -103,7 +100,8 @@ while(cap.isOpened()):
       break
  
   # Break the loop
-  else: 
+  else:
+    print('Error: frame not retrieved') 
     break
  
 # Release the video capture and video write objects
