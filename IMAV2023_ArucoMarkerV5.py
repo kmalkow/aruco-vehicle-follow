@@ -8,7 +8,6 @@
 # Description:  
 # Detect AND track Aruco marker from video live-stream.
 #  -------------------------------------------------------------------------
-
 #  ------------------------------------------------------------------------- #
 #                            LIBRARY DEFINITION                              #
 #  ------------------------------------------------------------------------- #
@@ -16,6 +15,29 @@ import glob
 import cv2
 import cv2.aruco
 import numpy as np
+
+
+# #  ------------------------------------------------------------------------- #
+# #                          CAMERA WORKING CHECK                              #
+# #  ------------------------------------------------------------------------- #
+# cap = cv2.VideoCapture(2)
+
+# while(True):
+#     # Capture frame-by-frame
+#     ret, frame = cap.read()
+
+#     # Our operations on the frame come here
+#     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+#     # Display the resulting frame
+#     cv2.imshow('frame', frame)
+#     if cv2.waitKey(1) & 0xFF == ord('q'):
+#         break
+
+# # When everything done, release the capture
+# cap.release()
+# cv2.destroyAllWindows()
+
 
 #  ------------------------------------------------------------------------- #
 #                            CONSTANT DEFINITION                             #
@@ -37,7 +59,7 @@ def frame_rescale(frame, scale_percent):
 #  ------------------------------------------------------------------------- #
 #                           LOAD CAMERA VARIABLES                            #
 #  ------------------------------------------------------------------------- #
-pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/cameraCalibration.xml'   
+pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Live_Video/cameraCalibration_Video.xml'
 cv_file = cv2.FileStorage(pathLoad, cv2.FILE_STORAGE_READ)
 camera_Matrix = cv_file.getNode("cM").mat()
 distortion_Coeff = cv_file.getNode("dist").mat()
@@ -47,8 +69,9 @@ cv_file.release()
 #  ------------------------------------------------------------------------- #
 #              LOAD VIDEO, DEFINE VIDEO CAPTURE, AND WRITE OBJECTS           #
 #  ------------------------------------------------------------------------- #
-# Create a VideoCapture object and read from camera (input is either 0 or 1, for first and second camera, respectively)
+# Create a VideoCapture object and read from camera (input is 2)
 cap = cv2.VideoCapture(2)
+FPS = cap.get(cv2.CAP_PROP_FPS)
 
 # Check if camera opened successfully
 if (cap.isOpened()== False): 
@@ -62,13 +85,15 @@ frame_height = int(cap.get(4))
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')
 
 # Create VideoWriter object 
-out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/POSE_ArucoMarker_LIVEVideo_Detected_1.mp4', fourcc, 30, (frame_width, frame_height))
+out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/POSE_ArucoMarker_LIVEVideo_Detected_1.mp4', fourcc, FPS, (frame_width, frame_height))
 
 # Read until video is completed
 while(cap.isOpened()):
   # Capture frame-by-frame
   ret, frame = cap.read()
+  gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
+  # If frame found
   if ret == True:
     #  ------------------------------------------------------------------------- #
     #                         ARUCO MARKER DETECTION                             #
@@ -83,7 +108,7 @@ while(cap.isOpened()):
     arucoDetector = cv2.aruco.ArucoDetector(arucoDictionary, arucoParameters)
 
     # List of aruco marker detected corners, IDs corresponding to each aruco marker, and rejected aruco markers
-    (markerCorners, markerIDs, rejectedCandidates) = arucoDetector.detectMarkers(frame)
+    (markerCorners, markerIDs, rejectedCandidates) = arucoDetector.detectMarkers(gray_frame)
     
     # AT LEAST ONE MARKER DETECTED   
     if len(markerCorners) > 0:        
@@ -140,18 +165,18 @@ while(cap.isOpened()):
                 cv2.putText(frame, text_1, org_1, font_1, fontScale_1, color_1, lineThickness_1, cv2.LINE_AA)
                 cv2.putText(frame, text_2, org_2, font_2, fontScale_2, color_2, lineThickness_2, cv2.LINE_AA)
 
-                #  ------------------------------------------------------------------------- #
-                #                         DISPLAY AND SAVE IMAGES                            #
-                #  ------------------------------------------------------------------------- #
-                # Write the frame into the file
-                out.write(frame)
-                
-                # Display the resulting frame
-                cv2.imshow('Frame', frame)
-            
-                # Wait 1 [ms] between each frame until it ends or press 'q' on keyboard to exit
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                  break
+    #  ------------------------------------------------------------------------- #
+    #                         DISPLAY AND SAVE IMAGES                            #
+    #  ------------------------------------------------------------------------- #
+    # Write the frame into the file
+    # out.write(frame)
+    
+    # Display the resulting frame
+    cv2.imshow('Frame', frame)
+
+    # Wait 1 [ms] between each frame until it ends or press 'q' on keyboard to exit
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+      break
             
   # Break the loop
   else:

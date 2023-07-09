@@ -40,7 +40,7 @@ def frame_rescale(frame, scale_percent):
 #  ------------------------------------------------------------------------- #
 #                           LOAD CAMERA VARIABLES                            #
 #  ------------------------------------------------------------------------- #
-pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/cameraCalibration.xml'   
+pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Live_Video/cameraCalibration_Video.xml'
 cv_file = cv2.FileStorage(pathLoad, cv2.FILE_STORAGE_READ)
 camera_Matrix = cv_file.getNode("cM").mat()
 distortion_Coeff = cv_file.getNode("dist").mat()
@@ -51,10 +51,11 @@ cv_file.release()
 #              LOAD VIDEO, DEFINE VIDEO CAPTURE, AND WRITE OBJECTS           #
 #  ------------------------------------------------------------------------- #
 #  Define video path
-path = '/home/kevin/IMAV2023/Aruco_Marker_Data/04_07_2023/Videos/Storey_1/2023_0704_035222_004.MP4'   
+path = '/home/kevin/IMAV2023/Aruco_Marker_Data/06_07_2023/Videos/2023_0706_002_VIBRATION.MP4'   
 	
 # Create a VideoCapture object and read from input file
 cap = cv2.VideoCapture(path)
+FPS = cap.get(cv2.CAP_PROP_FPS)
 
 # Check if camera opened successfully
 if (cap.isOpened()== False): 
@@ -68,14 +69,15 @@ frame_height = int(cap.get(4))
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')
 
 # Create VideoWriter object 
-out = cv2.VideoWriter('/home/kevin/IMAV2023/Aruco_Marker_Data/04_07_2023/Videos/Storey_1/Results/POSE1_ArucoMarker_Video_Detected_2.mp4', fourcc, 30, (frame_width, frame_height))
+out = cv2.VideoWriter('/home/kevin/IMAV2023/Aruco_Marker_Data/06_07_2023/Videos/Results/ArucoMarker_Video_Detected_VIBRATION_2.mp4', fourcc, FPS, (frame_width, frame_height))
 
 # Read until video is completed
 while(cap.isOpened()):
   # Capture frame-by-frame
   ret, frame = cap.read()
+  gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-  if ret == True:
+  if ret == True:    
     #  ------------------------------------------------------------------------- #
     #                         ARUCO MARKER DETECTION                             #
     #  ------------------------------------------------------------------------- #      
@@ -89,7 +91,7 @@ while(cap.isOpened()):
     arucoDetector = cv2.aruco.ArucoDetector(arucoDictionary, arucoParameters)
 
     # List of aruco marker detected corners, IDs corresponding to each aruco marker, and rejected aruco markers
-    (markerCorners, markerIDs, rejectedCandidates) = arucoDetector.detectMarkers(frame)
+    (markerCorners, markerIDs, rejectedCandidates) = arucoDetector.detectMarkers(gray_frame)
     
     # AT LEAST ONE MARKER DETECTED   
     if len(markerCorners) > 0:        
@@ -146,24 +148,24 @@ while(cap.isOpened()):
                 cv2.putText(frame, text_1, org_1, font_1, fontScale_1, color_1, lineThickness_1, cv2.LINE_AA)
                 cv2.putText(frame, text_2, org_2, font_2, fontScale_2, color_2, lineThickness_2, cv2.LINE_AA)
 
-                #  ------------------------------------------------------------------------- #
-                #                         DISPLAY AND SAVE IMAGES                            #
-                #  ------------------------------------------------------------------------- #
-                # Write the frame into the file
-                out.write(frame)
-                
-                # Display the resulting frame
-                cv2.imshow('Frame', frame)
-            
-                # Wait 1 [ms] between each frame until it ends or press 'q' on keyboard to exit
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                  break
+    #  ------------------------------------------------------------------------- #
+    #                         DISPLAY AND SAVE IMAGES                            #
+    #  ------------------------------------------------------------------------- #
+    # Write the frame into the file
+    out.write(frame)
+    
+    # Display the resulting frame
+    cv2.imshow('Frame', frame)
+
+    # Wait 1 [ms] between each frame until it ends or press 'q' on keyboard to exit
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+      break
             
   # Break the loop
   else:
     print('Error: frame not retrieved')  
     break
-            
+          
 # Release the video capture and video write objects
 cap.release()
 out.release()

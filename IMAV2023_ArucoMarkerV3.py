@@ -14,7 +14,6 @@
 # Upcoming Version: 5.0
 # Detect AND track Aruco marker from video live-stream.
 #  -------------------------------------------------------------------------
-
 #  ------------------------------------------------------------------------- #
 #                            LIBRARY DEFINITION                              #
 #  ------------------------------------------------------------------------- #
@@ -24,11 +23,16 @@ import cv2
 import cv2.aruco
 from pathlib import Path
 
+
 #  ------------------------------------------------------------------------- #
 #                            CONSTANT DEFINITION                             #
 #  ------------------------------------------------------------------------- #
-# Size of Aruco marker in [m]
+# # Size of A4-printed Aruco marker in [m]
+# MARKER_SIZE = 0.176
+
+# Size of big Aruco marker in [m]
 MARKER_SIZE = 0.35
+
 
 #  ------------------------------------------------------------------------- #
 #                                 FUNCTIONS                                  #
@@ -41,21 +45,26 @@ def img_rescale(img, scale_percent):
   dim = (width, height)
   return cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
 
+
 #  ------------------------------------------------------------------------- #
 #                           LOAD CAMERA VARIABLES                            #
 #  ------------------------------------------------------------------------- #
-pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/cameraCalibration.xml'   
+pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Images/cameraCalibration_Image.xml'   
 cv_file = cv2.FileStorage(pathLoad, cv2.FILE_STORAGE_READ)
 camera_Matrix = cv_file.getNode("cM").mat()
 distortion_Coeff = cv_file.getNode("dist").mat()
 
+print(f"Camera Matrix: {camera_Matrix}")
+print(f"Distortion Coeffs: {distortion_Coeff}")
+
 cv_file.release()
+
 
 #  ------------------------------------------------------------------------- #
 #                           LOAD AND READ IMAGES                             #
 #  ------------------------------------------------------------------------- #
 #  Define image path
-path = '/home/kevin/IMAV2023/Aruco_Marker_Data/04_07_2023/Pictures/Storey_2/*.JPG'   
+path = '/home/kevin/IMAV2023/Aruco_Marker_Data/04_07_2023/Pictures/Storey_3/*.JPG'   
 
 # Initialise counter for formatting saved images
 counter = 1
@@ -64,6 +73,7 @@ counter = 1
 for file in glob.iglob(path): 
     # Read image
     img = cv2.imread(file)
+    gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     #  ------------------------------------------------------------------------- #
     #                         ARUCO MARKER DETECTION                             #
@@ -78,7 +88,7 @@ for file in glob.iglob(path):
     arucoDetector = cv2.aruco.ArucoDetector(arucoDictionary, arucoParameters)
 
     # List of aruco marker detected corners, IDs corresponding to each aruco marker, and rejected aruco markers
-    (markerCorners, markerIDs, rejectedCandidates) = arucoDetector.detectMarkers(img)
+    (markerCorners, markerIDs, rejectedCandidates) = arucoDetector.detectMarkers(gray_img)
 
     # AT LEAST ONE MARKER DETECTED   
     if len(markerCorners) > 0:        
@@ -95,13 +105,13 @@ for file in glob.iglob(path):
 
                 # Remove Numpy value array error
                 (rvec - tvec).any()  
-                
+
                 #  ------------------------------------------------------------------------- #
                 #             COMPUTE AND SHOW EUCLIDEAN DISTANCE, X, Y, AND Z               #
                 #  ------------------------------------------------------------------------- #
                 # Compute Euclidean distance between two points in space -> sqrt(x^2 + y^2 + z^2)   
                 euclideanDist = np.sqrt(tvec[i][0][0] ** 2 + tvec[i][0][1] ** 2 + tvec[i][0][2] ** 2)
-                
+
                 # Print Euclidean distance, X, Y, and Z 
                 print(f"Euclidean Distance: {euclideanDist}")
                 print(f"X: {tvec[i][0][0]}")
@@ -115,7 +125,7 @@ for file in glob.iglob(path):
                 cv2.aruco.drawDetectedMarkers(img, markerCorners, markerIDs)  
 
                 # Draw axis on Aruco markers -> X = red, Y = green, Z = blue
-                cv2.drawFrameAxes(img, camera_Matrix, distortion_Coeff, rvec, tvec, MARKER_SIZE/2) 
+                cv2.drawFrameAxes(img, camera_Matrix, distortion_Coeff, rvec, tvec, MARKER_SIZE) 
 
                 # Add text to images 
                 org_1 = (int(markerCorners[i][0][0][0]), int(markerCorners[i][0][0][1])) # origin
@@ -137,12 +147,13 @@ for file in glob.iglob(path):
 
                 #  ------------------------------------------------------------------------- #
                 #                         DISPLAY AND SAVE IMAGES                            #
-                #  ------------------------------------------------------------------------- #
-                # Increase resolution (very computationally heavy -> ONLY FOR DEMONSTRATION PURPOSES!!!)
+                #  ------------------------------------------------------------------------- #0   
+                
+                # # Increase resolution (very computationally heavy -> ONLY FOR DEMONSTRATION PURPOSES!!!)
                 # img = cv2.pyrUp(img)
-
-                # Resize image to fit
-                img = cv2.resize(img, (960, 540))
+                
+                # Rescale image
+                img = img_rescale(img, 40)
 
                 # Display the resulting image
                 cv2.imshow('image', img)
@@ -153,7 +164,7 @@ for file in glob.iglob(path):
                 # # --------------------------------------------------------
                 # # UNCOMMENT TO SAVE IMAGE            
                 # # Saving the image
-                # cv2.imwrite('/home/kevin/IMAV2023/Aruco_Marker_Data/04_07_2023/Pictures/Storey_2/POSE2_ArucoMarkerDetected_{}.JPG'.format(counter), img)
+                # cv2.imwrite('/home/kevin/IMAV2023/Aruco_Marker_Data/04_07_2023/Pictures/Storey_3/Results_POSE_ESTIMATION/POSE3_ArucoMarkerDetected_{}.JPG'.format(counter), img)
                 # # --------------------------------------------------------
 
                 # Remove image from memory
@@ -161,3 +172,40 @@ for file in glob.iglob(path):
         
     # Increment counter for formatting saved images
     counter += 1
+
+
+
+
+
+
+    # #  ------------------------------------------------------------------------- #
+    # #                          GET ROI AND CROP IMAGE                            #
+    # #  ------------------------------------------------------------------------- #  
+    # # Get image height and width
+    # h, w = img.shape[:2]
+
+    # # Estimate new camera matrix so that border pixel are not lost for undistortion -> alpha=1 to keep geometric correctness, as a result there will be a smaller focal length because we zoom out
+    # _, roi = cv2.getOptimalNewCameraMatrix(camera_Matrix, distortion_Coeff, (w, h), 1, (w, h))
+
+    # # Crop the image
+    # x, y, w, h = roi
+    # img = img[y:y+h, x:x+w]
+
+
+
+    #  ------------------------------------------------------------------------- #
+    #                             UNDISTORT IMAGE                                #
+    #  ------------------------------------------------------------------------- #  
+    # # Get image height and width
+    # h, w = img.shape[:2]
+
+    # # Estimate new camera matrix so that border pixel are not lost for undistortion -> alpha=1 to keep geometric correctness, as a result there will be a smaller focal length because we zoom out
+    # newcameramtx, roi = cv2.getOptimalNewCameraMatrix(camera_Matrix, distortion_Coeff, (w, h), 1, (w, h))
+    
+    # # Undistort image
+    # mapx, mapy = cv2.initUndistortRectifyMap(camera_Matrix, distortion_Coeff, None, newcameramtx, (w, h), 5)
+    # img = cv2.remap(img, mapx, mapy, cv2.INTER_LINEAR)
+
+    # # Crop the image
+    # x, y, w, h = roi
+    # img = img[y:y+h, x:x+w]
