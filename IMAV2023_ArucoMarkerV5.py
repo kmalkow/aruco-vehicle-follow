@@ -59,7 +59,7 @@ def frame_rescale(frame, scale_percent):
 #  ------------------------------------------------------------------------- #
 #                           LOAD CAMERA VARIABLES                            #
 #  ------------------------------------------------------------------------- #
-pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Live_Video/cameraCalibration_Video.xml'
+pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/cameraCalibration_Video.xml'
 cv_file = cv2.FileStorage(pathLoad, cv2.FILE_STORAGE_READ)
 camera_Matrix = cv_file.getNode("cM").mat()
 distortion_Coeff = cv_file.getNode("dist").mat()
@@ -91,13 +91,15 @@ out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/POSE_ArucoMarker_LIVEVid
 while(cap.isOpened()):
   # Capture frame-by-frame
   ret, frame = cap.read()
-  gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
   # If frame found
   if ret == True:
     #  ------------------------------------------------------------------------- #
     #                         ARUCO MARKER DETECTION                             #
     #  ------------------------------------------------------------------------- #      
+    # Convert to grayscale
+    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    
     # Load dictionary for aruco marker
     arucoDictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_5X5_1000)
 

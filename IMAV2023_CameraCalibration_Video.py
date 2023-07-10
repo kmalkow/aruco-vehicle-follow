@@ -1,4 +1,4 @@
-# -------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------------------
 # Author:           Kevin Malkow
 # Date:             05/07/23
 # Affiliation:      TU Delft, IMAV 2023
@@ -6,8 +6,8 @@
 # Version:          1.0 
 # 
 # Description:  
-# Do a camera calibration and retrieve camera matrix and distortion coefficients
-#  -------------------------------------------------------------------------------
+# Do a camera calibration and retrieve camera matrix and distortion coefficients on video files
+#  ---------------------------------------------------------------------------------------------
 import cv2
 import numpy as np
 
@@ -35,7 +35,7 @@ import numpy as np
 #  ------------------------------------------------------------------------- #
 #             TERMINATION CRITERIA FOR CALIBRATION FUNCTION                  #
 #  ------------------------------------------------------------------------- #
-maxIter = 100
+maxIter = 30
 epsilon = 0.001
 termCriteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, maxIter, epsilon)
 
@@ -51,8 +51,8 @@ heightCB = 6
 # Size of square on chessboard
 square_size = 0.022 # [m]
 
-# FLAG: Stop recording
-MIN_POINTS = 1000
+# FLAG: Minimum no. of data points reached
+MIN_POINTS = 600
 
 #  ------------------------------------------------------------------------- #
 #                           CHESSBOARD CORNERS                               #
@@ -71,8 +71,11 @@ imgpoints = [] # 2d points in image plane
 #  ------------------------------------------------------------------------- #
 #              LOAD VIDEO, DEFINE VIDEO CAPTURE, AND WRITE OBJECTS           #
 #  ------------------------------------------------------------------------- #
+#  Define video path
+path = '/home/kevin/IMAV2023/Camera_Calibration/Videos/2021_0101_002954_005.MP4'  
+
 # Create a VideoCapture object and read from camera (input is 2)
-cap = cv2.VideoCapture(2)
+cap = cv2.VideoCapture(path)
 FPS = cap.get(cv2.CAP_PROP_FPS)
 
 # Check if camera opened successfully
@@ -87,16 +90,18 @@ frame_height = int(cap.get(4))
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')
 
 # Create VideoWriter object 
-out = cv2.VideoWriter('/home/kevin/IMAV2023/Camera_Calibration/Results/Video/ChessBoard_Detected.mp4', fourcc, FPS, (frame_width, frame_height))
+out = cv2.VideoWriter('/home/kevin/IMAV2023/Camera_Calibration/Results/Videos/ChessBoard_Detected_V4.mp4', fourcc, FPS, (frame_width, frame_height))
 
 # Read until video is completed
 while(cap.isOpened()):
   # Capture frame-by-frame
   ret, frame = cap.read()
-  gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
   # If frame found 
   if ret == True:  
+    # Convert to grayscale
+    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
     # Find the chess board corners
     ret, corners = cv2.findChessboardCorners(gray_frame, (widthCB, heightCB), None)
   
@@ -106,21 +111,9 @@ while(cap.isOpened()):
     
       corners2 = cv2.cornerSubPix(gray_frame, corners, (11,11), (-1,-1), termCriteria)
       imgpoints.append(corners2)
-    
+      
       # Draw and display the corners
       frame = cv2.drawChessboardCorners(frame, (widthCB, heightCB), corners2, ret)
-
-      gray_frameSize = gray_frame.shape[::-1]
-
-      # If minimum number of data points reached, stop
-      if len(imgpoints) > MIN_POINTS:
-        # Release the video capture and video write objects
-        cap.release()
-        out.release()      
-        
-        # Close all the frames
-        cv2.destroyAllWindows()
-        break
 
     #  ------------------------------------------------------------------------- #
     #                         DISPLAY AND SAVE IMAGES                            #
@@ -129,40 +122,33 @@ while(cap.isOpened()):
     out.write(frame)
     
     # Display the resulting frame
-    cv2.imshow('Frame', frame)
+    cv2.imshow('Frame', frame) 
 
-    # Wait 1 [ms] between each frame until it ends or press 'ESC' on keyboard to exit
-    k = cv2.waitKey(1) 
-    
-    if k == 27:
-      # Release the video capture and video write objects
-      cap.release()
-      out.release()
-            
-      # Close all the frames
-      cv2.destroyAllWindows()
+    # Wait 1 [ms] between each frame until it ends or press 'q' on keyboard to exit
+    if cv2.waitKey(1) & 0xFF == ord('q'):
       break
+
+    # Break if minimum no. of data points reached
+    if len(imgpoints) > MIN_POINTS:
+      break   
           
   # Break the loop
-  else:
+  else:    
     print('Error: frame not retrieved')  
     break
 
-print(objpoints)
-print(imgpoints)
-print(gray_frameSize)
 #  ------------------------------------------------------------------------- #
 #                           CAMERA CALIBRATION                               #
 #  ------------------------------------------------------------------------- #
 # Calibrate camera -> [..., camera matrix, distortion coefficients, rotation vectors, translation vectors]
-ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray_frameSize, None, None)
+ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray_frame.shape[::-1], None, None)
 print(f"Camera Matrix: {mtx}")
 print(f"Dist Coeff: {dist}")
 
 #  ------------------------------------------------------------------------- #
 #                             SAVE VARIABLES                                 #
 #  ------------------------------------------------------------------------- #
-pathStore = '/home/kevin/IMAV2023/CameraCalibration_Variables/Live_Video/cameraCalibration_Video.xml'   
+pathStore = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/cameraCalibration_Video_2.xml'   
 cv_file = cv2.FileStorage(pathStore, cv2.FILE_STORAGE_WRITE)
 cv_file.write("cM", mtx)
 cv_file.write("dist", dist)
@@ -181,4 +167,10 @@ for i in range(len(objpoints)):
  
 print(f"Total Error: {totError/len(objpoints)}") # 0.083 [m] error
 
+# Release the video capture and video write objects
+cap.release()
+out.release()
+            
+# Close all the frames
+cv2.destroyAllWindows()
 
