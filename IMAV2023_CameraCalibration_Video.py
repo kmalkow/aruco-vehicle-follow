@@ -52,7 +52,7 @@ heightCB = 6
 square_size = 0.022 # [m]
 
 # FLAG: Minimum no. of data points reached
-MIN_POINTS = 600
+MIN_POINTS = 400
 
 #  ------------------------------------------------------------------------- #
 #                           CHESSBOARD CORNERS                               #
@@ -72,10 +72,10 @@ imgpoints = [] # 2d points in image plane
 #              LOAD VIDEO, DEFINE VIDEO CAPTURE, AND WRITE OBJECTS           #
 #  ------------------------------------------------------------------------- #
 #  Define video path
-path = '/home/kevin/IMAV2023/Camera_Calibration/Videos/2021_0101_002954_005.MP4'  
+# path = '/home/kevin/IMAV2023/Camera_Calibration/Videos/2021_0101_002954_005.MP4'  
 
 # Create a VideoCapture object and read from camera (input is 2)
-cap = cv2.VideoCapture(path)
+cap = cv2.VideoCapture(2) 
 FPS = cap.get(cv2.CAP_PROP_FPS)
 
 # Check if camera opened successfully
@@ -86,11 +86,14 @@ if (cap.isOpened()== False):
 frame_width = int(cap.get(3))
 frame_height = int(cap.get(4))
 
+print(frame_width)
+print(frame_height)
+
 # Define video codec (FOURCC code)
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')
 
 # Create VideoWriter object 
-out = cv2.VideoWriter('/home/kevin/IMAV2023/Camera_Calibration/Results/Videos/ChessBoard_Detected_V4.mp4', fourcc, FPS, (frame_width, frame_height))
+out = cv2.VideoWriter('/home/kevin/IMAV2023/Camera_Calibration/Results/Videos/ChessBoard_Detected_V5.mp4', fourcc, FPS, (frame_width, frame_height))
 
 # Read until video is completed
 while(cap.isOpened()):
@@ -148,7 +151,7 @@ print(f"Dist Coeff: {dist}")
 #  ------------------------------------------------------------------------- #
 #                             SAVE VARIABLES                                 #
 #  ------------------------------------------------------------------------- #
-pathStore = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/cameraCalibration_Video_2.xml'   
+pathStore = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/cameraCalibration_Video_w640_h480.xml'   
 cv_file = cv2.FileStorage(pathStore, cv2.FILE_STORAGE_WRITE)
 cv_file.write("cM", mtx)
 cv_file.write("dist", dist)

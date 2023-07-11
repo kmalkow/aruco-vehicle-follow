@@ -40,7 +40,7 @@ def frame_rescale(frame, scale_percent):
 #  ------------------------------------------------------------------------- #
 #                           LOAD CAMERA VARIABLES                            #
 #  ------------------------------------------------------------------------- #
-pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/cameraCalibration_Video.xml'
+pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/cameraCalibration_Video_w1920_h1080.xml'
 cv_file = cv2.FileStorage(pathLoad, cv2.FILE_STORAGE_READ)
 camera_Matrix = cv_file.getNode("cM").mat()
 distortion_Coeff = cv_file.getNode("dist").mat()
@@ -51,7 +51,7 @@ cv_file.release()
 #              LOAD VIDEO, DEFINE VIDEO CAPTURE, AND WRITE OBJECTS           #
 #  ------------------------------------------------------------------------- #
 #  Define video path
-path = '/home/kevin/IMAV2023/Aruco_Marker_Data/06_07_2023/Videos/2023_0706_002_VIBRATION.MP4'   
+path = '/home/kevin/IMAV2023/Aruco_Marker_Data/06_07_2023/Videos/2023_0706_001.MP4'   
 	
 # Create a VideoCapture object and read from input file
 cap = cv2.VideoCapture(path)
@@ -69,7 +69,7 @@ frame_height = int(cap.get(4))
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')
 
 # Create VideoWriter object 
-out = cv2.VideoWriter('/home/kevin/IMAV2023/Aruco_Marker_Data/06_07_2023/Videos/Results/NEW_ArucoMarker_Video_Detected_VIBRATION.mp4', fourcc, FPS, (frame_width, frame_height))
+out = cv2.VideoWriter('/home/kevin/IMAV2023/Aruco_Marker_Data/06_07_2023/Videos/Results/NEW_ArucoMarker_Video_Detected_3.mp4', fourcc, FPS, (frame_width, frame_height))
 
 # Read until video is completed
 while(cap.isOpened()):
@@ -106,7 +106,7 @@ while(cap.isOpened()):
                 #                       ARUCO MARKER POSE ESTIMATION                         #
                 #  ------------------------------------------------------------------------- #
                 # Estimate pose of each marker and return the values rvec and tvec---different from camera coefficients
-                rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(markerCorners[i], MARKER_SIZE, camera_Matrix, distortion_Coeff)
+                rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(markerCorners, MARKER_SIZE, camera_Matrix, distortion_Coeff)
 
                 # Remove Numpy value array error
                 (rvec - tvec).any()  
@@ -114,14 +114,15 @@ while(cap.isOpened()):
                 #  ------------------------------------------------------------------------- #
                 #             COMPUTE AND SHOW EUCLIDEAN DISTANCE, X, Y, AND Z               #
                 #  ------------------------------------------------------------------------- #
-                # Compute Euclidean distance between two points in space -> sqrt(x^2 + y^2 + z^2)   
+                # Compute Euclidean distance between two points in space (origin to 3D point in space) -> sqrt(x^2 + y^2 + z^2)   
                 euclideanDist = np.sqrt(tvec[i][0][0] ** 2 + tvec[i][0][1] ** 2 + tvec[i][0][2] ** 2)
                 
                 # Print Euclidean distance, X, Y, and Z 
                 print(f"Euclidean Distance: {euclideanDist}")
                 print(f"X: {tvec[i][0][0]}")
                 print(f"Y: {tvec[i][0][1]}")
-                print(f"Z: {tvec[i][0][2]}")   
+                print(f"Z: {tvec[i][0][2]}")  
+                print(rvec)
                 
                 #  ------------------------------------------------------------------------- #
                 #                DRAW MARKERS, AXES, AND ADD TEXT TO IMAGES                  #
@@ -154,7 +155,7 @@ while(cap.isOpened()):
     #                         DISPLAY AND SAVE IMAGES                            #
     #  ------------------------------------------------------------------------- #
     # Write the frame into the file
-    out.write(frame)
+    # out.write(frame)
     
     # Display the resulting frame
     cv2.imshow('Frame', frame)

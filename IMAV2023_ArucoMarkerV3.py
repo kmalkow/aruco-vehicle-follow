@@ -95,13 +95,12 @@ for file in glob.iglob(path):
         # Failsafe -> Only consider Marker ID=700 (to nullify false positives)
         if any(x == 700 for x in markerIDs):
             # Iterate over aruco markers (Allow only 1 marker detection aince we know only ID=700 should be detected)
-            totalMarkers = min(1, len(markerIDs))
-            for i in range(0, totalMarkers):  
+            for i in range(0, len(markerIDs)):  
                 #  ------------------------------------------------------------------------- #
                 #                       ARUCO MARKER POSE ESTIMATION                         #
                 #  ------------------------------------------------------------------------- #
                 # Estimate pose of each marker and return the values rvec and tvec---different from camera coefficients
-                rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(markerCorners[i], MARKER_SIZE, camera_Matrix, distortion_Coeff)
+                rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(markerCorners, MARKER_SIZE, camera_Matrix, distortion_Coeff)
 
                 # Remove Numpy value array error
                 (rvec - tvec).any()  
@@ -109,7 +108,7 @@ for file in glob.iglob(path):
                 #  ------------------------------------------------------------------------- #
                 #             COMPUTE AND SHOW EUCLIDEAN DISTANCE, X, Y, AND Z               #
                 #  ------------------------------------------------------------------------- #
-                # Compute Euclidean distance between two points in space -> sqrt(x^2 + y^2 + z^2)   
+                # Compute Euclidean distance between two points in space (origin to 3D point in space) -> sqrt(x^2 + y^2 + z^2)   
                 euclideanDist = np.sqrt(tvec[i][0][0] ** 2 + tvec[i][0][1] ** 2 + tvec[i][0][2] ** 2)
 
                 # Print Euclidean distance, X, Y, and Z 

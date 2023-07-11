@@ -11,6 +11,7 @@
 #  ------------------------------------------------------------------------- #
 #                            LIBRARY DEFINITION                              #
 #  ------------------------------------------------------------------------- #
+import time
 import glob
 import cv2
 import cv2.aruco
@@ -38,7 +39,6 @@ import numpy as np
 # cap.release()
 # cv2.destroyAllWindows()
 
-
 #  ------------------------------------------------------------------------- #
 #                            CONSTANT DEFINITION                             #
 #  ------------------------------------------------------------------------- #
@@ -59,7 +59,7 @@ def frame_rescale(frame, scale_percent):
 #  ------------------------------------------------------------------------- #
 #                           LOAD CAMERA VARIABLES                            #
 #  ------------------------------------------------------------------------- #
-pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/cameraCalibration_Video.xml'
+pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/cameraCalibration_Video_w640_h480.xml' # Calibrated for video streaming with resolution w=640, h=480
 cv_file = cv2.FileStorage(pathLoad, cv2.FILE_STORAGE_READ)
 camera_Matrix = cv_file.getNode("cM").mat()
 distortion_Coeff = cv_file.getNode("dist").mat()
@@ -81,14 +81,26 @@ if (cap.isOpened()== False):
 frame_width = int(cap.get(3))
 frame_height = int(cap.get(4))
 
+print(frame_width)
+print(frame_height)
+
 # Define video codec (FOURCC code)
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')
 
 # Create VideoWriter object 
-out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/POSE_ArucoMarker_LIVEVideo_Detected_1.mp4', fourcc, FPS, (frame_width, frame_height))
+out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/ArucoMarker_LIVEVideo_Detected_TEST_V3.mp4', fourcc, FPS, (frame_width, frame_height))
+
+# Measure time
+# start_time = time.time()
+# print(f"Start time: {start_time}")
 
 # Read until video is completed
 while(cap.isOpened()):
+  
+  # live_time = time.time()
+  # current_time = live_time - start_time
+  # print(f"Current time: {current_time}")  
+  
   # Capture frame-by-frame
   ret, frame = cap.read()
 
@@ -117,21 +129,20 @@ while(cap.isOpened()):
         # Failsafe -> Only consider Marker ID=700 (to nullify false positives)
         if any(x == 700 for x in markerIDs):
             # Iterate over aruco markers (Allow only 1 marker detection aince we know only ID=700 should be detected)
-            totalMarkers = min(1, len(markerIDs))
-            for i in range(0, totalMarkers):  
+            for i in range(0, 1):  
                 #  ------------------------------------------------------------------------- #
                 #                       ARUCO MARKER POSE ESTIMATION                         #
                 #  ------------------------------------------------------------------------- #
                 # Estimate pose of each marker and return the values rvec and tvec---different from camera coefficients
-                rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(markerCorners[i], MARKER_SIZE, camera_Matrix, distortion_Coeff)
+                rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(markerCorners, MARKER_SIZE, camera_Matrix, distortion_Coeff)
 
-                # Remove Numpy value array error
-                (rvec - tvec).any()  
+                # # Remove Numpy value array error
+                # (rvec - tvec).any()  
                 
                 #  ------------------------------------------------------------------------- #
                 #             COMPUTE AND SHOW EUCLIDEAN DISTANCE, X, Y, AND Z               #
                 #  ------------------------------------------------------------------------- #
-                # Compute Euclidean distance between two points in space -> sqrt(x^2 + y^2 + z^2)   
+                # Compute Euclidean distance between two points in space (origin to 3D point in space) -> sqrt(x^2 + y^2 + z^2)   
                 euclideanDist = np.sqrt(tvec[i][0][0] ** 2 + tvec[i][0][1] ** 2 + tvec[i][0][2] ** 2)
                 
                 # Print Euclidean distance, X, Y, and Z 
@@ -158,7 +169,7 @@ while(cap.isOpened()):
                 lineThickness_1 = 2
 
                 org_2 = (int(markerCorners[i][0][3][0]), int(markerCorners[i][0][3][1])) # origin
-                text_2 = f"X: {round(tvec[i][0][0], 1)}[m] Y: {round(tvec[i][0][1], 1)}[m]"
+                text_2 = f"X: {round(tvec[i][0][0], 1)}[m] Y: {round(tvec[i][0][1], 1)}[m] Z: {round(tvec[i][0][2], 1)}[m]"
                 font_2 = cv2.FONT_HERSHEY_PLAIN
                 fontScale_2 = 1.0
                 color_2 = (0, 0, 255)
@@ -171,7 +182,7 @@ while(cap.isOpened()):
     #                         DISPLAY AND SAVE IMAGES                            #
     #  ------------------------------------------------------------------------- #
     # Write the frame into the file
-    # out.write(frame)
+    out.write(frame)
     
     # Display the resulting frame
     cv2.imshow('Frame', frame)
@@ -184,7 +195,9 @@ while(cap.isOpened()):
   else:
     print('Error: frame not retrieved')  
     break
-            
+
+# print(f"Final time: {current_time}")
+
 # Release the video capture and video write objects
 cap.release()
 out.release()
