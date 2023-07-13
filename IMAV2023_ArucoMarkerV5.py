@@ -12,6 +12,7 @@
 #                            LIBRARY DEFINITION                              #
 #  ------------------------------------------------------------------------- #
 import time
+import csv
 import glob
 import cv2
 import cv2.aruco
@@ -40,10 +41,19 @@ import numpy as np
 # cv2.destroyAllWindows()
 
 #  ------------------------------------------------------------------------- #
-#                            CONSTANT DEFINITION                             #
+#                      CONSTANT/VARIABLE DEFINITION                          #
 #  ------------------------------------------------------------------------- #
 # Size of Aruco marker in [m]
 MARKER_SIZE = 0.35
+
+# Size of Coordinate System axis in 3D
+axes_3D = np.float32([[MARKER_SIZE, 0, 0], [0, -MARKER_SIZE, 0], [0, 0, -MARKER_SIZE], [0, 0, 0]]).reshape(-1, 3)
+
+# Arrays to store measured X, Y, Z, and time values 
+X_m = []    # Measured X value
+Y_m = []    # Measured Y value
+Z_m = []    # Measured Z value
+time_m = [] # Measured time
 
 #  ------------------------------------------------------------------------- #
 #                                FUNCTIONS                                   #
@@ -59,7 +69,7 @@ def frame_rescale(frame, scale_percent):
 #  ------------------------------------------------------------------------- #
 #                           LOAD CAMERA VARIABLES                            #
 #  ------------------------------------------------------------------------- #
-pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/cameraCalibration_Video_w640_h480.xml' # Calibrated for video streaming with resolution w=640, h=480
+pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/cameraCalibration_Video_w1920_h1080_HERELINKV2.xml' # Calibrated for video streaming with resolution w=640, h=480
 cv_file = cv2.FileStorage(pathLoad, cv2.FILE_STORAGE_READ)
 camera_Matrix = cv_file.getNode("cM").mat()
 distortion_Coeff = cv_file.getNode("dist").mat()
@@ -69,8 +79,11 @@ cv_file.release()
 #  ------------------------------------------------------------------------- #
 #              LOAD VIDEO, DEFINE VIDEO CAPTURE, AND WRITE OBJECTS           #
 #  ------------------------------------------------------------------------- #
-# Create a VideoCapture object and read from camera (input is 2)
-cap = cv2.VideoCapture(2)
+# Create a VideoCapture object and read from camera (input is either an rtsp stream from the herelink module or input 2)
+# cap = cv2.VideoCapture(2)
+cap = cv2.VideoCapture("rtsp://192.168.43.1:8554/fpv_stream")
+
+# Get FPS from Video Capture object
 FPS = cap.get(cv2.CAP_PROP_FPS)
 
 # Check if camera opened successfully
@@ -88,19 +101,19 @@ print(frame_height)
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')
 
 # Create VideoWriter object 
-out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/ArucoMarker_LIVEVideo_Detected_TEST_V3.mp4', fourcc, FPS, (frame_width, frame_height))
+out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/TESTS_LiveVideo_V1_2.mp4', fourcc, FPS, (frame_width, frame_height))
 
-# Measure time
-# start_time = time.time()
-# print(f"Start time: {start_time}")
+# Measure start time
+start_time = time.time()
 
 # Read until video is completed
 while(cap.isOpened()):
   
-  # live_time = time.time()
-  # current_time = live_time - start_time
-  # print(f"Current time: {current_time}")  
-  
+  # Measure and save current time
+  live_time = time.time()
+  current_time = live_time - start_time
+  time_m.append(current_time)
+
   # Capture frame-by-frame
   ret, frame = cap.read()
 
@@ -134,10 +147,10 @@ while(cap.isOpened()):
                 #                       ARUCO MARKER POSE ESTIMATION                         #
                 #  ------------------------------------------------------------------------- #
                 # Estimate pose of each marker and return the values rvec and tvec---different from camera coefficients
-                rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(markerCorners, MARKER_SIZE, camera_Matrix, distortion_Coeff)
+                rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(markerCorners[i], MARKER_SIZE, camera_Matrix, distortion_Coeff)
 
-                # # Remove Numpy value array error
-                # (rvec - tvec).any()  
+                # Remove Numpy value array error
+                (rvec - tvec).any()  
                 
                 #  ------------------------------------------------------------------------- #
                 #             COMPUTE AND SHOW EUCLIDEAN DISTANCE, X, Y, AND Z               #
@@ -149,7 +162,12 @@ while(cap.isOpened()):
                 print(f"Euclidean Distance: {euclideanDist}")
                 print(f"X: {tvec[i][0][0]}")
                 print(f"Y: {tvec[i][0][1]}")
-                print(f"Z: {tvec[i][0][2]}")   
+                print(f"Z: {tvec[i][0][2]}") 
+
+                # Save measured X, Y, and Z
+                X_m.append(tvec[i][0][0])
+                Y_m.append(tvec[i][0][1]) 
+                Z_m.append(tvec[i][0][2])
                 
                 #  ------------------------------------------------------------------------- #
                 #                DRAW MARKERS, AXES, AND ADD TEXT TO IMAGES                  #
@@ -157,9 +175,35 @@ while(cap.isOpened()):
                 # Draw around the correctly detected aruco markers
                 cv2.aruco.drawDetectedMarkers(frame, markerCorners, markerIDs)  
 
-                # Draw axis on Aruco markers -> X = red, Y = green, Z = blue
-                cv2.drawFrameAxes(frame, camera_Matrix, distortion_Coeff, rvec, tvec, MARKER_SIZE/2) 
+                # DRAW COORDINATE SYSTEM IN 2D IMAGE PLANE -> Project 3D points into 2D image plane
+                axisPoints, _ = cv2.projectPoints(axes_3D, rvec, tvec, camera_Matrix, distortion_Coeff)
 
+                # DRAW COORDINATE SYSTEM IN 2D IMAGE PLANE -> Define start (X, Y) coordinates
+                X_start =  axisPoints[3][0][0] + (frame_width/2 - axisPoints[3][0][0])
+                Y_start = axisPoints[3][0][1] + (frame_height/2 - axisPoints[3][0][1]) 
+                      
+                # print(frame_width/2)
+                # print(axisPoints[3][0][0])
+                # print(frame_width/2 - axisPoints[3][0][0])
+                # print(axisPoints[3][0][0] + (frame_width/2 - axisPoints[3][0][0]))
+
+                # print("-----------------------------------")      
+
+                # print(frame_height/2)
+                # print(axisPoints[3][0][1])
+                # print(frame_height/2 - axisPoints[3][0][1])
+                # print(axisPoints[3][0][1] + (frame_height/2 - axisPoints[3][0][1]))
+
+                # DRAW COORDINATE SYSTEM IN 2D IMAGE PLANE -> Define end (X, Y) coordinates for X-axis, Y-axis, and Z-axis
+                X_end_Xaxis =  X_start + (axisPoints[0][0][0] - axisPoints[3][0][0])
+                Y_end_Xaxis =  Y_start + (axisPoints[0][0][1] - axisPoints[3][0][1])
+                X_end_Yaxis =  X_start + (axisPoints[1][0][0] - axisPoints[3][0][0])
+                Y_end_Yaxis =  Y_start + (axisPoints[1][0][1] - axisPoints[3][0][1])
+                
+                # DRAW COORDINATE SYSTEM IN 2D IMAGE PLANE -> Draw axis on Aruco markers -> X = red, Y = green, Z = blue     
+                cv2.line(frame, (int(X_start), int(Y_start)), (int(X_end_Xaxis), int(Y_end_Xaxis)), (0,0,255), 3)
+                cv2.line(frame, (int(X_start), int(Y_start)), (int(X_end_Yaxis), int(Y_end_Yaxis)), (0,255,0), 3)
+                
                 # Add text to images 
                 org_1 = (int(markerCorners[i][0][0][0]), int(markerCorners[i][0][0][1])) # origin
                 text_1 = f"Dist: {round(euclideanDist, 2)}[m]"
@@ -169,7 +213,7 @@ while(cap.isOpened()):
                 lineThickness_1 = 2
 
                 org_2 = (int(markerCorners[i][0][3][0]), int(markerCorners[i][0][3][1])) # origin
-                text_2 = f"X: {round(tvec[i][0][0], 1)}[m] Y: {round(tvec[i][0][1], 1)}[m] Z: {round(tvec[i][0][2], 1)}[m]"
+                text_2 = f"X: {round(tvec[i][0][0], 2)}[m] Y: {round(tvec[i][0][1], 2)}[m] Z: {round(tvec[i][0][2], 2)}[m]"
                 font_2 = cv2.FONT_HERSHEY_PLAIN
                 fontScale_2 = 1.0
                 color_2 = (0, 0, 255)
@@ -185,7 +229,7 @@ while(cap.isOpened()):
     out.write(frame)
     
     # Display the resulting frame
-    cv2.imshow('Frame', frame)
+    cv2.imshow('frame', frame)
 
     # Wait 1 [ms] between each frame until it ends or press 'q' on keyboard to exit
     if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -196,7 +240,12 @@ while(cap.isOpened()):
     print('Error: frame not retrieved')  
     break
 
-# print(f"Final time: {current_time}")
+#  ------------------------------------------------------------------------- #
+#                          SAVE MEASURED VARIABLES                           #
+#  ------------------------------------------------------------------------- #
+with open('/home/kevin/IMAV2023/Measured_Variables/Indoor_Tests/IndoorTEST1_V10', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(Z_m, time_m))
 
 # Release the video capture and video write objects
 cap.release()

@@ -49,10 +49,10 @@ widthCB = 9
 heightCB = 6
 
 # Size of square on chessboard
-square_size = 0.022 # [m]
+square_size = 0.0225 # [m]
 
 # FLAG: Minimum no. of data points reached
-MIN_POINTS = 400
+MIN_POINTS = 900
 
 #  ------------------------------------------------------------------------- #
 #                           CHESSBOARD CORNERS                               #
@@ -74,8 +74,9 @@ imgpoints = [] # 2d points in image plane
 #  Define video path
 # path = '/home/kevin/IMAV2023/Camera_Calibration/Videos/2021_0101_002954_005.MP4'  
 
-# Create a VideoCapture object and read from camera (input is 2)
-cap = cv2.VideoCapture(2) 
+# Create a VideoCapture object and read from camera (input is either an rtsp stream from the herelink module or input 2)
+# cap = cv2.VideoCapture(2)
+cap = cv2.VideoCapture("rtsp://192.168.43.1:8554/fpv_stream")
 FPS = cap.get(cv2.CAP_PROP_FPS)
 
 # Check if camera opened successfully
@@ -93,7 +94,7 @@ print(frame_height)
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')
 
 # Create VideoWriter object 
-out = cv2.VideoWriter('/home/kevin/IMAV2023/Camera_Calibration/Results/Videos/ChessBoard_Detected_V5.mp4', fourcc, FPS, (frame_width, frame_height))
+out = cv2.VideoWriter('/home/kevin/IMAV2023/Camera_Calibration/Results/Videos/ChessBoard_Detected_V7.mp4', fourcc, FPS, (frame_width, frame_height))
 
 # Read until video is completed
 while(cap.isOpened()):
@@ -133,6 +134,7 @@ while(cap.isOpened()):
 
     # Break if minimum no. of data points reached
     if len(imgpoints) > MIN_POINTS:
+      print("Sufficient data points retrieved...")
       break   
           
   # Break the loop
@@ -144,14 +146,18 @@ while(cap.isOpened()):
 #                           CAMERA CALIBRATION                               #
 #  ------------------------------------------------------------------------- #
 # Calibrate camera -> [..., camera matrix, distortion coefficients, rotation vectors, translation vectors]
+print("Starting camera calibration...")
 ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray_frame.shape[::-1], None, None)
+print("Finished camera calibration...")
+print("-----------------------------")
+
 print(f"Camera Matrix: {mtx}")
 print(f"Dist Coeff: {dist}")
 
 #  ------------------------------------------------------------------------- #
 #                             SAVE VARIABLES                                 #
 #  ------------------------------------------------------------------------- #
-pathStore = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/cameraCalibration_Video_w640_h480.xml'   
+pathStore = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/cameraCalibration_Video_w1920_h1080_HERELINKV2.xml'   
 cv_file = cv2.FileStorage(pathStore, cv2.FILE_STORAGE_WRITE)
 cv_file.write("cM", mtx)
 cv_file.write("dist", dist)

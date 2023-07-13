@@ -100,7 +100,7 @@ for file in glob.iglob(path):
                 #                       ARUCO MARKER POSE ESTIMATION                         #
                 #  ------------------------------------------------------------------------- #
                 # Estimate pose of each marker and return the values rvec and tvec---different from camera coefficients
-                rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(markerCorners, MARKER_SIZE, camera_Matrix, distortion_Coeff)
+                rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(markerCorners[i], MARKER_SIZE, camera_Matrix, distortion_Coeff)
 
                 # Remove Numpy value array error
                 (rvec - tvec).any()  
@@ -135,7 +135,7 @@ for file in glob.iglob(path):
                 lineThickness_1 = 2
 
                 org_2 = (int(markerCorners[i][0][3][0]), int(markerCorners[i][0][3][1])) # origin
-                text_2 = f"X: {round(tvec[i][0][0], 1)}[m] Y: {round(tvec[i][0][1], 1)}[m]"
+                text_2 = f"X: {round(tvec[i][0][0], 2)}[m] Y: {round(tvec[i][0][1], 2)}[m]"
                 font_2 = cv2.FONT_HERSHEY_PLAIN
                 fontScale_2 = 1.0
                 color_2 = (0, 0, 255)

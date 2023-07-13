@@ -15,6 +15,7 @@
 #  ------------------------------------------------------------------------- #
 #                            LIBRARY DEFINITION                              #
 #  ------------------------------------------------------------------------- #
+import math
 import glob
 import cv2
 import cv2.aruco
@@ -25,6 +26,9 @@ import numpy as np
 #  ------------------------------------------------------------------------- #
 # Size of Aruco marker in [m]
 MARKER_SIZE = 0.35
+
+# Size of Coordinate System axis in 3D
+axes_3D = np.float32([[MARKER_SIZE, 0, 0], [0, -MARKER_SIZE, 0], [0, 0, MARKER_SIZE], [0, 0, 0]]).reshape(-1, 3)
 
 #  ------------------------------------------------------------------------- #
 #                                FUNCTIONS                                   #
@@ -40,7 +44,7 @@ def frame_rescale(frame, scale_percent):
 #  ------------------------------------------------------------------------- #
 #                           LOAD CAMERA VARIABLES                            #
 #  ------------------------------------------------------------------------- #
-pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/cameraCalibration_Video_w1920_h1080.xml'
+pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/cameraCalibration_Video_w1920_h1080_HERELINKV2.xml'
 cv_file = cv2.FileStorage(pathLoad, cv2.FILE_STORAGE_READ)
 camera_Matrix = cv_file.getNode("cM").mat()
 distortion_Coeff = cv_file.getNode("dist").mat()
@@ -69,7 +73,7 @@ frame_height = int(cap.get(4))
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')
 
 # Create VideoWriter object 
-out = cv2.VideoWriter('/home/kevin/IMAV2023/Aruco_Marker_Data/06_07_2023/Videos/Results/NEW_ArucoMarker_Video_Detected_3.mp4', fourcc, FPS, (frame_width, frame_height))
+out = cv2.VideoWriter('/home/kevin/IMAV2023/Aruco_Marker_Data/06_07_2023/Videos/Results/NEW_ArucoMarker_Video_Detected_4.mp4', fourcc, FPS, (frame_width, frame_height))
 
 # Read until video is completed
 while(cap.isOpened()):
@@ -106,7 +110,7 @@ while(cap.isOpened()):
                 #                       ARUCO MARKER POSE ESTIMATION                         #
                 #  ------------------------------------------------------------------------- #
                 # Estimate pose of each marker and return the values rvec and tvec---different from camera coefficients
-                rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(markerCorners, MARKER_SIZE, camera_Matrix, distortion_Coeff)
+                rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(markerCorners[i], MARKER_SIZE, camera_Matrix, distortion_Coeff)
 
                 # Remove Numpy value array error
                 (rvec - tvec).any()  
@@ -122,16 +126,29 @@ while(cap.isOpened()):
                 print(f"X: {tvec[i][0][0]}")
                 print(f"Y: {tvec[i][0][1]}")
                 print(f"Z: {tvec[i][0][2]}")  
-                print(rvec)
                 
                 #  ------------------------------------------------------------------------- #
                 #                DRAW MARKERS, AXES, AND ADD TEXT TO IMAGES                  #
                 #  ------------------------------------------------------------------------- #
                 # Draw around the correctly detected aruco markers
                 cv2.aruco.drawDetectedMarkers(frame, markerCorners, markerIDs)  
+  
+                # DRAW COORDINATE SYSTEM IN 2D IMAGE PLANE -> Project 3D points into 2D image plane
+                axisPoints, _ = cv2.projectPoints(axes_3D, rvec, tvec, camera_Matrix, distortion_Coeff)
 
-                # Draw axis on Aruco markers -> X = red, Y = green, Z = blue
-                cv2.drawFrameAxes(frame, camera_Matrix, distortion_Coeff, rvec, tvec, MARKER_SIZE/2) 
+                # DRAW COORDINATE SYSTEM IN 2D IMAGE PLANE -> Define start (X, Y) coordinates
+                X_start =  axisPoints[3][0][0] + (frame_width/2 - axisPoints[3][0][0])
+                Y_start = axisPoints[3][0][1] + (frame_height/2 - axisPoints[3][0][1]) 
+                      
+                # DRAW COORDINATE SYSTEM IN 2D IMAGE PLANE -> Define end (X, Y) coordinates for X-axis, Y-axis, and Z-axis
+                X_end_Xaxis =  X_start + (axisPoints[0][0][0] - axisPoints[3][0][0])
+                Y_end_Xaxis =  Y_start + (axisPoints[0][0][1] - axisPoints[3][0][1])
+                X_end_Yaxis =  X_start + (axisPoints[1][0][0] - axisPoints[3][0][0])
+                Y_end_Yaxis =  Y_start + (axisPoints[1][0][1] - axisPoints[3][0][1])
+                
+                # DRAW COORDINATE SYSTEM IN 2D IMAGE PLANE -> Draw axis on Aruco markers -> X = red, Y = green, Z = blue     
+                cv2.line(frame, (int(X_start), int(Y_start)), (int(X_end_Xaxis), int(Y_end_Xaxis)), (0,0,255), 3)
+                cv2.line(frame, (int(X_start), int(Y_start)), (int(X_end_Yaxis), int(Y_end_Yaxis)), (0,255,0), 3)
 
                 # Add text to images 
                 org_1 = (int(markerCorners[i][0][0][0]), int(markerCorners[i][0][0][1])) # origin
@@ -142,7 +159,7 @@ while(cap.isOpened()):
                 lineThickness_1 = 2
 
                 org_2 = (int(markerCorners[i][0][3][0]), int(markerCorners[i][0][3][1])) # origin
-                text_2 = f"X: {round(tvec[i][0][0], 1)}[m] Y: {round(tvec[i][0][1], 1)}[m]"
+                text_2 = f"X: {round(tvec[i][0][0], 2)}[m] Y: {round(tvec[i][0][1], 2)}[m] Z: {round(tvec[i][0][2], 2)}[m]"
                 font_2 = cv2.FONT_HERSHEY_PLAIN
                 fontScale_2 = 1.0
                 color_2 = (0, 0, 255)
