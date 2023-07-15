@@ -49,7 +49,7 @@ def img_rescale(img, scale_percent):
 #  ------------------------------------------------------------------------- #
 #                           LOAD CAMERA VARIABLES                            #
 #  ------------------------------------------------------------------------- #
-pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Images/cameraCalibration_Image.xml'   
+pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Images/MAPIR_cameraCalibration_Image.xml'   
 cv_file = cv2.FileStorage(pathLoad, cv2.FILE_STORAGE_READ)
 camera_Matrix = cv_file.getNode("cM").mat()
 distortion_Coeff = cv_file.getNode("dist").mat()

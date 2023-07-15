@@ -18,7 +18,6 @@ import cv2
 import cv2.aruco
 import numpy as np
 
-
 # #  ------------------------------------------------------------------------- #
 # #                          CAMERA WORKING CHECK                              #
 # #  ------------------------------------------------------------------------- #
@@ -49,11 +48,12 @@ MARKER_SIZE = 0.35
 # Size of Coordinate System axis in 3D
 axes_3D = np.float32([[MARKER_SIZE, 0, 0], [0, -MARKER_SIZE, 0], [0, 0, -MARKER_SIZE], [0, 0, 0]]).reshape(-1, 3)
 
-# Arrays to store measured X, Y, Z, and time values 
-X_m = []    # Measured X value
-Y_m = []    # Measured Y value
-Z_m = []    # Measured Z value
-time_m = [] # Measured time
+# Arrays to store measured X, Y, Z, Euclidean Distance, and time values 
+X_m = []                    # Measured X value
+Y_m = []                    # Measured Y value
+Z_m = []                    # Measured Z value
+EuclideanDistance_m = []    # Measured Euclidean Distance value
+time_m = []                 # Measured time
 
 #  ------------------------------------------------------------------------- #
 #                                FUNCTIONS                                   #
@@ -69,7 +69,7 @@ def frame_rescale(frame, scale_percent):
 #  ------------------------------------------------------------------------- #
 #                           LOAD CAMERA VARIABLES                            #
 #  ------------------------------------------------------------------------- #
-pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/cameraCalibration_Video_w1920_h1080_HERELINKV2.xml' # Calibrated for video streaming with resolution w=640, h=480
+pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w1920_h1080_HERELINKV2.xml' # Calibrated for video streaming with resolution w=640, h=480
 cv_file = cv2.FileStorage(pathLoad, cv2.FILE_STORAGE_READ)
 camera_Matrix = cv_file.getNode("cM").mat()
 distortion_Coeff = cv_file.getNode("dist").mat()
@@ -101,7 +101,8 @@ print(frame_height)
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')
 
 # Create VideoWriter object 
-out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/TESTS_LiveVideo_V1_2.mp4', fourcc, FPS, (frame_width, frame_height))
+# out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/VALKENBURG_14_07_23_TEST1.mp4', fourcc, FPS, (frame_width, frame_height))
+out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/MAIN_TESTV2.mp4', fourcc, FPS, (frame_width, frame_height))
 
 # Measure start time
 start_time = time.time()
@@ -164,10 +165,11 @@ while(cap.isOpened()):
                 print(f"Y: {tvec[i][0][1]}")
                 print(f"Z: {tvec[i][0][2]}") 
 
-                # Save measured X, Y, and Z
+                # Save measured X, Y, Z, and Euclidean Distance
                 X_m.append(tvec[i][0][0])
                 Y_m.append(tvec[i][0][1]) 
                 Z_m.append(tvec[i][0][2])
+                EuclideanDistance_m.append(euclideanDist)
                 
                 #  ------------------------------------------------------------------------- #
                 #                DRAW MARKERS, AXES, AND ADD TEXT TO IMAGES                  #
@@ -226,7 +228,7 @@ while(cap.isOpened()):
     #                         DISPLAY AND SAVE IMAGES                            #
     #  ------------------------------------------------------------------------- #
     # Write the frame into the file
-    out.write(frame)
+    # out.write(frame)
     
     # Display the resulting frame
     cv2.imshow('frame', frame)
@@ -240,12 +242,43 @@ while(cap.isOpened()):
     print('Error: frame not retrieved')  
     break
 
+# #  ------------------------------------------------------------------------- #
+# #                          SAVE MEASURED VARIABLES                           #
+# #  ------------------------------------------------------------------------- #
+# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/LIVE_VALKENBURG_14_07_23_TEST1_X', 'w') as csvfile:
+#     writer=csv.writer(csvfile, delimiter=',')
+#     writer.writerows(zip(X_m, time_m))
+
+# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/LIVE_VALKENBURG_14_07_23_TEST1_Y', 'w') as csvfile:
+#     writer=csv.writer(csvfile, delimiter=',')
+#     writer.writerows(zip(Y_m, time_m))
+
+# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/LIVE_VALKENBURG_14_07_23_TEST1_Z', 'w') as csvfile:
+#     writer=csv.writer(csvfile, delimiter=',')
+#     writer.writerows(zip(Z_m, time_m))
+
+# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/LIVE_VALKENBURG_14_07_23_TEST1_Dist', 'w') as csvfile:
+#     writer=csv.writer(csvfile, delimiter=',')
+#     writer.writerows(zip(EuclideanDistance_m, time_m))
+
 #  ------------------------------------------------------------------------- #
 #                          SAVE MEASURED VARIABLES                           #
 #  ------------------------------------------------------------------------- #
-with open('/home/kevin/IMAV2023/Measured_Variables/Indoor_Tests/IndoorTEST1_V10', 'w') as csvfile:
-    writer=csv.writer(csvfile, delimiter=',')
-    writer.writerows(zip(Z_m, time_m))
+# with open('/home/kevin/IMAV2023/Measured_Variables/Indoor_Tests/TEST_X_V2', 'w') as csvfile:
+#     writer=csv.writer(csvfile, delimiter=',')
+#     writer.writerows(zip(X_m, time_m))
+
+# with open('/home/kevin/IMAV2023/Measured_Variables/Indoor_Tests/TEST_Y_V2', 'w') as csvfile:
+#     writer=csv.writer(csvfile, delimiter=',')
+#     writer.writerows(zip(Y_m, time_m))
+
+# with open('/home/kevin/IMAV2023/Measured_Variables/Indoor_Tests/TEST_Z_V2', 'w') as csvfile:
+#     writer=csv.writer(csvfile, delimiter=',')
+#     writer.writerows(zip(Z_m, time_m))
+
+# with open('/home/kevin/IMAV2023/Measured_Variables/Indoor_Tests/TEST_Dist_V2', 'w') as csvfile:
+#     writer=csv.writer(csvfile, delimiter=',')
+#     writer.writerows(zip(EuclideanDistance_m, time_m))
 
 # Release the video capture and video write objects
 cap.release()

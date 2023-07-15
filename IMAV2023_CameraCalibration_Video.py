@@ -94,7 +94,7 @@ print(frame_height)
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')
 
 # Create VideoWriter object 
-out = cv2.VideoWriter('/home/kevin/IMAV2023/Camera_Calibration/Results/Videos/ChessBoard_Detected_V7.mp4', fourcc, FPS, (frame_width, frame_height))
+out = cv2.VideoWriter('/home/kevin/IMAV2023/Camera_Calibration/Results/Videos/ChessBoard_Detected_V8.mp4', fourcc, FPS, (frame_width, frame_height))
 
 # Read until video is completed
 while(cap.isOpened()):
@@ -157,7 +157,7 @@ print(f"Dist Coeff: {dist}")
 #  ------------------------------------------------------------------------- #
 #                             SAVE VARIABLES                                 #
 #  ------------------------------------------------------------------------- #
-pathStore = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/cameraCalibration_Video_w1920_h1080_HERELINKV2.xml'   
+pathStore = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/cameraCalibration_Video_w1920_h1080_HERELINKV3.xml'   
 cv_file = cv2.FileStorage(pathStore, cv2.FILE_STORAGE_WRITE)
 cv_file.write("cM", mtx)
 cv_file.write("dist", dist)
