@@ -43,7 +43,8 @@ import numpy as np
 #                      CONSTANT/VARIABLE DEFINITION                          #
 #  ------------------------------------------------------------------------- #
 # Size of Aruco marker in [m]
-MARKER_SIZE = 0.35
+# MARKER_SIZE = 0.35
+MARKER_SIZE = 1.107
 
 # Size of Coordinate System axis in 3D
 axes_3D = np.float32([[MARKER_SIZE, 0, 0], [0, -MARKER_SIZE, 0], [0, 0, -MARKER_SIZE], [0, 0, 0]]).reshape(-1, 3)
@@ -102,7 +103,7 @@ fourcc = cv2.VideoWriter_fourcc('m','p','4','v')
 
 # Create VideoWriter object 
 # out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/VALKENBURG_14_07_23_TEST1.mp4', fourcc, FPS, (frame_width, frame_height))
-out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/MAIN_TESTV2.mp4', fourcc, FPS, (frame_width, frame_height))
+out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/TEST_1x1MarkerV4.mp4', fourcc, FPS, (frame_width, frame_height))
 
 # Measure start time
 start_time = time.time()
@@ -184,18 +185,6 @@ while(cap.isOpened()):
                 X_start =  axisPoints[3][0][0] + (frame_width/2 - axisPoints[3][0][0])
                 Y_start = axisPoints[3][0][1] + (frame_height/2 - axisPoints[3][0][1]) 
                       
-                # print(frame_width/2)
-                # print(axisPoints[3][0][0])
-                # print(frame_width/2 - axisPoints[3][0][0])
-                # print(axisPoints[3][0][0] + (frame_width/2 - axisPoints[3][0][0]))
-
-                # print("-----------------------------------")      
-
-                # print(frame_height/2)
-                # print(axisPoints[3][0][1])
-                # print(frame_height/2 - axisPoints[3][0][1])
-                # print(axisPoints[3][0][1] + (frame_height/2 - axisPoints[3][0][1]))
-
                 # DRAW COORDINATE SYSTEM IN 2D IMAGE PLANE -> Define end (X, Y) coordinates for X-axis, Y-axis, and Z-axis
                 X_end_Xaxis =  X_start + (axisPoints[0][0][0] - axisPoints[3][0][0])
                 Y_end_Xaxis =  Y_start + (axisPoints[0][0][1] - axisPoints[3][0][1])
