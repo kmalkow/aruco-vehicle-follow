@@ -6,7 +6,9 @@
 # Version:          5.0 
 # 
 # Description:  
-# Detect AND track Aruco marker from video live-stream.
+# - Detect AND track Aruco marker from video live-stream
+# - Input  -> Camera parameters, real-time video stream via Herelink
+# - Output -> Relative (X, Y, Z,) position and Euclidean Distance of the Aruco marker to the camera (displayed per frame)
 #  -------------------------------------------------------------------------
 #  ------------------------------------------------------------------------- #
 #                            LIBRARY DEFINITION                              #
@@ -19,22 +21,20 @@ import cv2.aruco
 import numpy as np
 
 # #  ------------------------------------------------------------------------- #
-# #                          CAMERA WORKING CHECK                              #
+# #                          STREAM WORKING CHECK                              #
 # #  ------------------------------------------------------------------------- #
 # cap = cv2.VideoCapture(2)
+# cap = cv2.VideoCapture("rtsp://192.168.43.1:8554/fpv_stream")
 
 # while(True):
 #     # Capture frame-by-frame
 #     ret, frame = cap.read()
-
-#     # Our operations on the frame come here
-#     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
+# 
 #     # Display the resulting frame
 #     cv2.imshow('frame', frame)
 #     if cv2.waitKey(1) & 0xFF == ord('q'):
 #         break
-
+# 
 # # When everything done, release the capture
 # cap.release()
 # cv2.destroyAllWindows()
@@ -43,8 +43,7 @@ import numpy as np
 #                      CONSTANT/VARIABLE DEFINITION                          #
 #  ------------------------------------------------------------------------- #
 # Size of Aruco marker in [m]
-# MARKER_SIZE = 0.35
-MARKER_SIZE = 1.107
+MARKER_SIZE = 1.107 # For small marker change to 0.35 [m]
 
 # Size of Coordinate System axis in 3D
 axes_3D = np.float32([[MARKER_SIZE, 0, 0], [0, -MARKER_SIZE, 0], [0, 0, -MARKER_SIZE], [0, 0, 0]]).reshape(-1, 3)
@@ -55,17 +54,6 @@ Y_m = []                    # Measured Y value
 Z_m = []                    # Measured Z value
 EuclideanDistance_m = []    # Measured Euclidean Distance value
 time_m = []                 # Measured time
-
-#  ------------------------------------------------------------------------- #
-#                                FUNCTIONS                                   #
-#  ------------------------------------------------------------------------- #
-def frame_rescale(frame, scale_percent):
-# Frame downscaling -> USED AS FRAME INPUT AND AFFECTS PERFORMANCE OF DETECTOR
-  scale_percent = 30 # Percent of original size
-  width = int(frame.shape[1] * scale_percent / 100)
-  height = int(frame.shape[0] * scale_percent / 100)
-  dim = (width, height)
-  return cv2.resize(frame, dim, interpolation = cv2.INTER_AREA)
 
 #  ------------------------------------------------------------------------- #
 #                           LOAD CAMERA VARIABLES                            #
@@ -152,24 +140,29 @@ while(cap.isOpened()):
                 rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(markerCorners[i], MARKER_SIZE, camera_Matrix, distortion_Coeff)
 
                 # Remove Numpy value array error
-                (rvec - tvec).any()  
+                (rvec - tvec).any() 
+
+                # (X, Y, Z)
+                X = tvec[i][0][0]
+                Y = tvec[i][0][1]
+                Z = tvec[i][0][2]
                 
                 #  ------------------------------------------------------------------------- #
                 #             COMPUTE AND SHOW EUCLIDEAN DISTANCE, X, Y, AND Z               #
                 #  ------------------------------------------------------------------------- #
                 # Compute Euclidean distance between two points in space (origin to 3D point in space) -> sqrt(x^2 + y^2 + z^2)   
-                euclideanDist = np.sqrt(tvec[i][0][0] ** 2 + tvec[i][0][1] ** 2 + tvec[i][0][2] ** 2)
-                
+                euclideanDist = np.sqrt(X ** 2 + Y ** 2 + Z ** 2)
+
                 # Print Euclidean distance, X, Y, and Z 
                 print(f"Euclidean Distance: {euclideanDist}")
-                print(f"X: {tvec[i][0][0]}")
-                print(f"Y: {tvec[i][0][1]}")
-                print(f"Z: {tvec[i][0][2]}") 
+                print(f"X: {X}")
+                print(f"Y: {Y}")
+                print(f"Z: {Z}") 
 
                 # Save measured X, Y, Z, and Euclidean Distance
-                X_m.append(tvec[i][0][0])
-                Y_m.append(tvec[i][0][1]) 
-                Z_m.append(tvec[i][0][2])
+                X_m.append(X)
+                Y_m.append(Y) 
+                Z_m.append(Z)
                 EuclideanDistance_m.append(euclideanDist)
                 
                 #  ------------------------------------------------------------------------- #
@@ -204,7 +197,7 @@ while(cap.isOpened()):
                 lineThickness_1 = 2
 
                 org_2 = (int(markerCorners[i][0][3][0]), int(markerCorners[i][0][3][1])) # origin
-                text_2 = f"X: {round(tvec[i][0][0], 2)}[m] Y: {round(tvec[i][0][1], 2)}[m] Z: {round(tvec[i][0][2], 2)}[m]"
+                text_2 = f"X: {round(X, 2)}[m] Y: {round(Y, 2)}[m] Z: {round(Z, 2)}[m]"
                 font_2 = cv2.FONT_HERSHEY_PLAIN
                 fontScale_2 = 1.0
                 color_2 = (0, 0, 255)
