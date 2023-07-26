@@ -9,7 +9,7 @@
 # Detect AND track Aruco marker from pre-recorded videos
 # 
 # Version updates:
-# Cleaned the code to make it as simple as possible 
+# - Cleaned the code to improve performance and added new visuals
 # 
 # Upcoming Version: 5.0
 # Detect AND track Aruco marker from video live-stream.
@@ -35,7 +35,14 @@ cv_file.release()
 
                                         # VARIABLE DEFINITION #
 # ------------------------------------------------------------------------------------------------------- #
-MARKER_SIZE = 1.107 # Size of Aruco marker in [m] -> 1.107 [m]||0.35 [m]
+MARKER_SIZE = 1.107         # Size of Aruco marker in [m] -> 1.107 [m]||0.35 [m]
+
+X_m = []                    # Measured X value
+Y_m = []                    # Measured Y value
+Z_m = []                    # Measured Z value
+EuclideanDistance_m = []    # Measured Euclidean Distance value
+time_m = []                 # Measured time
+
 
                                       # FUNCTION -> VISUALISE LEGEND #
 # ------------------------------------------------------------------------------------------------------- #
@@ -186,9 +193,17 @@ arucoParameters.cornerRefinementMinAccuracy = 0.2
 # --------- Build Aruco Makrer Detector --------- # 
 arucoDetector = cv2.aruco.ArucoDetector(arucoDictionary, arucoParameters)
 
+# --------- Timer Start --------- # 
+start_time = time.time()
+
                                             # RUN MAIN LOOP #
 # ------------------------------------------------------------------------------------------------------- #
 while(cap.isOpened()):
+  # --------- Measure and Save Current Time --------- # 
+  live_time = time.time()
+  current_time = live_time - start_time
+  time_m.append(current_time)
+
   # --------- Read Frame-by-Frame --------- # 
   ret, frame = cap.read()
 
@@ -209,12 +224,15 @@ while(cap.isOpened()):
 
       # --------- Save and Print X, Y, and Z --------- # 
       X = tvec[0][0][0]
+      X_m.append(X)          # Save measured X
       print(f"X: {X}")
 
       Y = tvec[0][0][1]
+      Y_m.append(Y)          # Save measured Y
       print(f"Y: {Y}")
 
       Z = tvec[0][0][2]
+      Z_m.append(Z)          # Save measured Z
       print(f"ALTITUDE: {Z}")
       print("-------------------------------") 
 
@@ -236,6 +254,36 @@ while(cap.isOpened()):
     print('Error: frame not retrieved')  
     break
 
+                                            # SAVE MEASURED VARIABLES #
+# ------------------------------------------------------------------------------------------------------- #
+# --------- Outdoor Tests --------- # 
+# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/PRE_VALKENBURG_20_07_23_TEST_X', 'w') as csvfile:
+#     writer=csv.writer(csvfile, delimiter=',')
+#     writer.writerows(zip(X_m, time_m))
+
+# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/PRE_VALKENBURG_20_07_23_TEST_Y', 'w') as csvfile:
+#     writer=csv.writer(csvfile, delimiter=',')
+#     writer.writerows(zip(Y_m, time_m))
+
+# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/PRE_VALKENBURG_20_07_23_TEST_Z', 'w') as csvfile:
+#     writer=csv.writer(csvfile, delimiter=',')
+#     writer.writerows(zip(Z_m, time_m))
+
+# --------- Indoor Tests --------- # 
+# with open('/home/kevin/IMAV2023/Measured_Variables/Indoor_Tests/TEST1_X', 'w') as csvfile:
+#     writer=csv.writer(csvfile, delimiter=',')
+#     writer.writerows(zip(X_m, time_m))
+
+# with open('/home/kevin/IMAV2023/Measured_Variables/Indoor_Tests/TEST1_Y', 'w') as csvfile:
+#     writer=csv.writer(csvfile, delimiter=',')
+#     writer.writerows(zip(Y_m, time_m))
+
+# with open('/home/kevin/IMAV2023/Measured_Variables/Indoor_Tests/TEST1_ZChanges', 'w') as csvfile:
+#     writer=csv.writer(csvfile, delimiter=',')
+#     writer.writerows(zip(Z_m, time_m))
+
+                                            # CLOSE CODE PROPERLY #
+# ------------------------------------------------------------------------------------------------------- #
 # --------- Release Objects --------- # 
 cap.release()
 out.release()
