@@ -59,6 +59,7 @@ time_m = []                 # Measured time
 #                           LOAD CAMERA VARIABLES                            #
 #  ------------------------------------------------------------------------- #
 pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w1920_h1080_HERELINKV2.xml' # Calibrated for video streaming with resolution w=640, h=480
+# pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w640_h480.xml' # Calibrated for video streaming with resolution w=640, h=480
 cv_file = cv2.FileStorage(pathLoad, cv2.FILE_STORAGE_READ)
 camera_Matrix = cv_file.getNode("cM").mat()
 distortion_Coeff = cv_file.getNode("dist").mat()
@@ -80,7 +81,7 @@ if (cap.isOpened()== False):
   print("Error: cannot open video file or stream")
  
 # Default resolutions of the frame are obtained and converted from float to integer
-frame_width = int(cap.get(3))
+frame_width = int(cap.get(3)) 
 frame_height = int(cap.get(4))
 
 print(frame_width)
@@ -90,7 +91,7 @@ print(frame_height)
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')
 
 # Create VideoWriter object 
-# out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/VALKENBURG_14_07_23_TEST1.mp4', fourcc, FPS, (frame_width, frame_height))
+# out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/VALKENBURG_20_07_23_TEST8.mp4', fourcc, FPS, (frame_width, frame_height))
 out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/TEST_1x1MarkerV4.mp4', fourcc, FPS, (frame_width, frame_height))
 
 # Measure start time
@@ -103,9 +104,16 @@ while(cap.isOpened()):
   live_time = time.time()
   current_time = live_time - start_time
   time_m.append(current_time)
+  # print(f"Running for: {time_m}", end='\n')
 
   # Capture frame-by-frame
   ret, frame = cap.read()
+
+  # Change resolution
+  # frame = cv2.resize(frame, (640, 480))
+
+  # Image blurring (Averaging filter)
+  # frame = cv2.blur(frame, (5, 5))
 
   # If frame found
   if ret == True:
@@ -210,7 +218,7 @@ while(cap.isOpened()):
     #                         DISPLAY AND SAVE IMAGES                            #
     #  ------------------------------------------------------------------------- #
     # Write the frame into the file
-    # out.write(frame)
+    # out.write(frame) # THIS MIGHT SLOW DOWN/OVERLOAD CODE
     
     # Display the resulting frame
     cv2.imshow('frame', frame)
@@ -223,23 +231,24 @@ while(cap.isOpened()):
   else:
     print('Error: frame not retrieved')  
     break
+  print(time_m)
 
-# #  ------------------------------------------------------------------------- #
-# #                          SAVE MEASURED VARIABLES                           #
-# #  ------------------------------------------------------------------------- #
-# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/LIVE_VALKENBURG_14_07_23_TEST1_X', 'w') as csvfile:
+#  ------------------------------------------------------------------------- #
+#                          SAVE MEASURED VARIABLES                           #
+#  ------------------------------------------------------------------------- #
+# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/LIVE_VALKENBURG_20_07_23_TEST2_X', 'w') as csvfile:
 #     writer=csv.writer(csvfile, delimiter=',')
 #     writer.writerows(zip(X_m, time_m))
 
-# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/LIVE_VALKENBURG_14_07_23_TEST1_Y', 'w') as csvfile:
+# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/LIVE_VALKENBURG_20_07_23_TEST2_Y', 'w') as csvfile:
 #     writer=csv.writer(csvfile, delimiter=',')
 #     writer.writerows(zip(Y_m, time_m))
 
-# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/LIVE_VALKENBURG_14_07_23_TEST1_Z', 'w') as csvfile:
+# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/LIVE_VALKENBURG_20_07_23_TEST2_Z', 'w') as csvfile:
 #     writer=csv.writer(csvfile, delimiter=',')
 #     writer.writerows(zip(Z_m, time_m))
 
-# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/LIVE_VALKENBURG_14_07_23_TEST1_Dist', 'w') as csvfile:
+# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/LIVE_VALKENBURG_20_07_23_TEST2_Dist', 'w') as csvfile:
 #     writer=csv.writer(csvfile, delimiter=',')
 #     writer.writerows(zip(EuclideanDistance_m, time_m))
 

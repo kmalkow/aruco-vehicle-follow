@@ -6,7 +6,7 @@
 # Version:          4.0 
 # 
 # Description:  
-# Detect AND track Aruco marker from pre-recorded videos.
+# Detect AND track Aruco marker from pre-recorded videos -> Used as test and debug platform using pre-recorded videos
 # 
 # Upcoming Version: 5.0
 # Detect AND track Aruco marker from video live-stream.
@@ -16,17 +16,51 @@
 #                            LIBRARY DEFINITION                              #
 #  ------------------------------------------------------------------------- #
 import time
+import math
 import csv
 import glob
 import cv2
 import cv2.aruco
 import numpy as np
 
+# #  ------------------------------------------------------------------------- #
+# #                       IVYBUS -> SENDING/RECEIVING DATA                     #
+# #  ------------------------------------------------------------------------- #
+# import sys
+
+# sys.path.append("/home/kevin/paparazzi/sw/ext/pprzlink/lib/v2.0/python/")
+
+# from ivy.std_api import *
+# import pprzlink.ivy
+# import pprzlink.messages_xml_map as messages_xml_map
+# import pprzlink.message as message
+
+# # Bind to drone attitude message (callback function for when message is received)
+# def attitude_callback(ac_id, pprzMsg):
+#   # Print the message and the sender id
+#   print ("Received message %s from %s" % (pprzMsg,ac_id))
+#   pitch = pprzMsg['theta']
+#   roll  = pprzMsg['phi']
+#   yaw   = pprzMsg['psi']
+
+# # Create Ivy interface -> receive messages from Ivybus
+# ivy = pprzlink.ivy.IvyMessagesInterface(agent_name="ArucoMarker", start_ivy=False, ivy_bus="127.255.255.255:2010")
+
+# # Start the ivy interface
+# ivy.start()
+
+# # Subscribe to Ivybus messages
+# ivy.subscribe(attitude_callback, message.PprzMessage("telemetry", "NPS_RATE_ATTITUDE"))
+
+# Stop Ivy interface
+# ivy.shutdown()
+            
+
 #  ------------------------------------------------------------------------- #
 #                            CONSTANT DEFINITION                             #
 #  ------------------------------------------------------------------------- #
 # Size of Aruco marker in [m]
-MARKER_SIZE = 0.35
+MARKER_SIZE = 1.107 # For small marker change to 0.35 [m]
 
 # Size of Coordinate System axis in 3D
 axes_3D = np.float32([[MARKER_SIZE, 0, 0], [0, -MARKER_SIZE, 0], [0, 0, -MARKER_SIZE], [0, 0, 0]]).reshape(-1, 3)
@@ -37,6 +71,11 @@ Y_m = []                    # Measured Y value
 Z_m = []                    # Measured Z value
 EuclideanDistance_m = []    # Measured Euclidean Distance value
 time_m = []                 # Measured time
+
+# Drone attitude 
+# pitch = 0 # Theta
+# roll  = 0 # Phi
+# yaw   = 0 # Psi
 
 #  ------------------------------------------------------------------------- #
 #                                FUNCTIONS                                   #
@@ -63,7 +102,7 @@ cv_file.release()
 #              LOAD VIDEO, DEFINE VIDEO CAPTURE, AND WRITE OBJECTS           #
 #  ------------------------------------------------------------------------- #
 #  Define video path
-path = '/home/kevin/IMAV2023/Aruco_Marker_Data/14_07_2023_VALKENBURG1/Videos/2023_0706_001.MP4'   
+path = '/home/kevin/IMAV2023/Live_Videos/VALKENBURG_20_07_23_TEST7.mp4'   
 	
 # Create a VideoCapture object and read from input file
 cap = cv2.VideoCapture(path)
@@ -81,7 +120,7 @@ frame_height = int(cap.get(4))
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')
 
 # Create VideoWriter object 
-out = cv2.VideoWriter('/home/kevin/IMAV2023/Aruco_Marker_Data/14_07_2023_VALKENBURG1/Videos/Results/VALKENBURG_14_07_23_TEST1.mp4', fourcc, FPS, (frame_width, frame_height))
+out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/Results/VALKENBURG_20_07_23_RESULT.mp4', fourcc, FPS, (frame_width, frame_height))
 
 # Measure start time
 start_time = time.time()
@@ -131,25 +170,52 @@ while(cap.isOpened()):
 
                 # Remove Numpy value array error
                 (rvec - tvec).any()  
+
+                # (X, Y, Z)
+                X = tvec[i][0][0]
+                Y = tvec[i][0][1]
+                Z = tvec[i][0][2]
                 
+                # # Rotation matrices around the X (roll), Y (pitch), and Z (yaw) axis
+                # RX = np.array([1, 0, 0, 0], [0, math.cos(roll), -math.sin(roll), 0], [0, math.sin(roll), math.cos(roll),  0], [0, 0, 0, 1])
+                # RY = np.array([math.cos(pitch),  0, math.sin(pitch), 0], [0, 1, 0, 0], [-math.sin(pitch), 0, math.cos(pitch), 0], [0, 0, 0, 1])
+                # RZ = np.array([math.cos(yaw), -math.sin(yaw), 0, 0], [math.sin(yaw), math.cos(yaw), 0, 0], [0, 0, 1, 0], [0, 0, 0, 1])
+                
+                # R = RZ * RY * RX
+
+                # T = np.array()
+
+                # // Translation matrix
+                # Mat T = (Mat_<double>(4, 4) <<
+                #         1, 0, 0, dx,
+                #         0, 1, 0, dy,
+                #         0, 0, 1, dz,
+                #         0, 0, 0, 1);
+                # // Compose rotation matrix with (RX, RY, RZ)
+                # Mat R = RZ * RY * RX;
+                # // Final transformation matrix
+                # Mat H = A2 * (T * (R * A1));
+                # // Apply matrix transformation
+                # warpPerspective(input, output, H, input.size(), INTER_LANCZOS4);
+                              
                 #  ------------------------------------------------------------------------- #
                 #             COMPUTE AND SHOW EUCLIDEAN DISTANCE, X, Y, AND Z               #
                 #  ------------------------------------------------------------------------- #
                 # Compute Euclidean distance between two points in space (origin to 3D point in space) -> sqrt(x^2 + y^2 + z^2)   
-                euclideanDist = np.sqrt(tvec[i][0][0] ** 2 + tvec[i][0][1] ** 2 + tvec[i][0][2] ** 2)
-                
+                euclideanDist = np.sqrt(X ** 2 + Y ** 2 + Z ** 2)
+
                 # Print Euclidean distance, X, Y, and Z 
                 print(f"Euclidean Distance: {euclideanDist}")
-                print(f"X: {tvec[i][0][0]}")
-                print(f"Y: {tvec[i][0][1]}")
-                print(f"Z: {tvec[i][0][2]}")  
+                print(f"X: {X}")
+                print(f"Y: {Y}")
+                print(f"Z: {Z}") 
 
                 # Save measured X, Y, Z, and Euclidean Distance
-                X_m.append(tvec[i][0][0])
-                Y_m.append(tvec[i][0][1]) 
-                Z_m.append(tvec[i][0][2])
+                X_m.append(X)
+                Y_m.append(Y) 
+                Z_m.append(Z)
                 EuclideanDistance_m.append(euclideanDist)
-                
+
                 #  ------------------------------------------------------------------------- #
                 #                DRAW MARKERS, AXES, AND ADD TEXT TO IMAGES                  #
                 #  ------------------------------------------------------------------------- #
@@ -224,19 +290,19 @@ while(cap.isOpened()):
 # #  ------------------------------------------------------------------------- #
 # #                          SAVE MEASURED VARIABLES                           #
 # #  ------------------------------------------------------------------------- #
-# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/PRE_VALKENBURG_14_07_23_TEST1_X', 'w') as csvfile:
+# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/PRE_VALKENBURG_20_07_23_TEST_X', 'w') as csvfile:
 #     writer=csv.writer(csvfile, delimiter=',')
 #     writer.writerows(zip(X_m, time_m))
 
-# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/PRE_VALKENBURG_14_07_23_TEST1_Y', 'w') as csvfile:
+# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/PRE_VALKENBURG_20_07_23_TEST_Y', 'w') as csvfile:
 #     writer=csv.writer(csvfile, delimiter=',')
 #     writer.writerows(zip(Y_m, time_m))
 
-# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/PRE_VALKENBURG_14_07_23_TEST1_Z', 'w') as csvfile:
+# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/PRE_VALKENBURG_20_07_23_TEST_Z', 'w') as csvfile:
 #     writer=csv.writer(csvfile, delimiter=',')
 #     writer.writerows(zip(Z_m, time_m))
 
-# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/PRE_VALKENBURG_14_07_23_TEST1_Dist', 'w') as csvfile:
+# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/PRE_VALKENBURG_20_07_23_TEST_Dist', 'w') as csvfile:
 #     writer=csv.writer(csvfile, delimiter=',')
 #     writer.writerows(zip(EuclideanDistance_m, time_m))
 
@@ -262,6 +328,6 @@ while(cap.isOpened()):
 # Release the video capture and video write objects
 cap.release()
 out.release()
-            
+
 # Close all the frames
 cv2.destroyAllWindows()
