@@ -1,19 +1,19 @@
 # --------------------------------------------------------------------------
 # Author:           Kevin Malkow
-# Date:             26/07/23
+# Date:             01/09/23
 # Affiliation:      TU Delft, IMAV 2023
 #
-# Version:          4.1 
+# Version:          5.1
 # 
 # Description:  
-# Detect AND track Aruco marker from pre-recorded videos
-# 
-# Version updates:
-# - Cleaned the code to improve performance and added new visuals
-# 
-# Upcoming Version: 5.1
-# Detect AND track Aruco marker from video live-stream -> 
-#   - Cleaned code 
+# - Detect AND track Aruco marker from video live-stream
+# - Input  -> Camera parameters, real-time video stream via Herelink
+# - Output -> Relative (X, Y, Z,) position and Euclidean Distance of the Aruco marker to the camera (displayed per frame)
+#
+# Version Updates:
+# - Code clean-up
+# - Aruco detection performance improvement to avoid freezing of algorithm
+# - Updated aruco marker detection visuals
 #  -------------------------------------------------------------------------
 
                                         # LIBRARY DEFINITION #
@@ -24,6 +24,24 @@ import csv
 import cv2
 import cv2.aruco
 import numpy as np
+
+                                        # STREAM WORKING CHECK #
+# # ------------------------------------------------------------------------------------------------------- #
+# # cap = cv2.VideoCapture(2)
+# cap = cv2.VideoCapture("rtsp://192.168.43.1:8554/fpv_stream")
+
+# while(True):
+#     # Capture frame-by-frame
+#     ret, frame = cap.read()
+# 
+#     # Display the resulting frame
+#     cv2.imshow('frame', frame)
+#     if cv2.waitKey(1) & 0xFF == ord('q'):
+#         break
+# 
+# # When everything done, release the capture
+# cap.release()
+# cv2.destroyAllWindows()
 
                                       # LOAD CAMERA PARAMETERS #
 # ------------------------------------------------------------------------------------------------------- #
@@ -141,10 +159,7 @@ def visualiseMarkerPosition(X_visual, Y_visual, Z_visual, frame_pos, width, heig
                                               # VIDEO #
 # ------------------------------------------------------------------------------------------------------- #
 # --------- Load Video --------- #
-path = '/home/kevin/IMAV2023/Live_Videos/VALKENBURG_20_07_23_TEST7_SHORTENED.mp4'    # Define video path	
-# path = '/home/kevin/IMAV2023/Aruco_Marker_Data/06_07_2023/Videos/2023_0706_001.MP4'    # Define video path	
-
-cap = cv2.VideoCapture(path)                                                         # Create a VideoCapture object
+cap = cv2.VideoCapture("rtsp://192.168.43.1:8554/fpv_stream")                        # Create a VideoCapture object (input is either an rtsp stream from the herelink module or input 2 for usb streaming)
 FPS = cap.get(cv2.CAP_PROP_FPS)                                                      # Read FPS from input video
 
 # --------- Functioning? --------- #
@@ -288,4 +303,3 @@ out.release()
 
 # --------- Close Frames --------- # 
 cv2.destroyAllWindows()
-

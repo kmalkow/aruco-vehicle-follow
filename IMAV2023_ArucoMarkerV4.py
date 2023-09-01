@@ -18,7 +18,6 @@
 import time
 import math
 import csv
-import glob
 import cv2
 import cv2.aruco
 import numpy as np
@@ -176,27 +175,7 @@ while(cap.isOpened()):
                 Y = tvec[i][0][1]
                 Z = tvec[i][0][2]
                 
-                # # Rotation matrices around the X (roll), Y (pitch), and Z (yaw) axis
-                # RX = np.array([1, 0, 0, 0], [0, math.cos(roll), -math.sin(roll), 0], [0, math.sin(roll), math.cos(roll),  0], [0, 0, 0, 1])
-                # RY = np.array([math.cos(pitch),  0, math.sin(pitch), 0], [0, 1, 0, 0], [-math.sin(pitch), 0, math.cos(pitch), 0], [0, 0, 0, 1])
-                # RZ = np.array([math.cos(yaw), -math.sin(yaw), 0, 0], [math.sin(yaw), math.cos(yaw), 0, 0], [0, 0, 1, 0], [0, 0, 0, 1])
-                
-                # R = RZ * RY * RX
 
-                # T = np.array()
-
-                # // Translation matrix
-                # Mat T = (Mat_<double>(4, 4) <<
-                #         1, 0, 0, dx,
-                #         0, 1, 0, dy,
-                #         0, 0, 1, dz,
-                #         0, 0, 0, 1);
-                # // Compose rotation matrix with (RX, RY, RZ)
-                # Mat R = RZ * RY * RX;
-                # // Final transformation matrix
-                # Mat H = A2 * (T * (R * A1));
-                # // Apply matrix transformation
-                # warpPerspective(input, output, H, input.size(), INTER_LANCZOS4);
                               
                 #  ------------------------------------------------------------------------- #
                 #             COMPUTE AND SHOW EUCLIDEAN DISTANCE, X, Y, AND Z               #

@@ -3,27 +3,40 @@
 # Date:             26/07/23
 # Affiliation:      TU Delft, IMAV 2023
 #
-# Version:          4.1 
+# Version:          4.2 
 # 
 # Description:  
 # Detect AND track Aruco marker from pre-recorded videos
 # 
 # Version updates:
 # - Cleaned the code to improve performance and added new visuals
+# - Read Ivybus messages and save values
 # 
-# Upcoming Version: 5.1
+# Upcoming Version: 5.2
 # Detect AND track Aruco marker from video live-stream -> 
 #   - Cleaned code 
+#   - Ivybus messages
 #  -------------------------------------------------------------------------
 
                                         # LIBRARY DEFINITION #
 # ------------------------------------------------------------------------------------------------------- #
+# --------- General --------- # 
 import time
 import math
 import csv
+# import sys
 import cv2
 import cv2.aruco
+# import threading
 import numpy as np
+
+# # --------- Ivybus Specific --------- # 
+# sys.path.append("/home/kevin/paparazzi/sw/ext/pprzlink/lib/v2.0/python/")
+
+# from ivy.std_api import *
+# import pprzlink.ivy
+# import pprzlink.messages_xml_map as messages_xml_map
+# import pprzlink.message as message          
 
                                       # LOAD CAMERA PARAMETERS #
 # ------------------------------------------------------------------------------------------------------- #
@@ -35,14 +48,40 @@ cv_file.release()
 
                                         # VARIABLE DEFINITION #
 # ------------------------------------------------------------------------------------------------------- #
-MARKER_SIZE = 1.107         # Size of Aruco marker in [m] -> 1.107 [m]| | 0.35 [m]
+MARKER_SIZE = 1.107         # Size of Aruco marker in [m] -> 1.107 [m]||0.35 [m]
 
-X_m = []                    # Measured X value
-Y_m = []                    # Measured Y value
-Z_m = []                    # Measured Z value
-time_m = []                 # Measured time
+# pitch_values = None         # Global variable to store Ivybus received pitch values
+# roll_values = None          # Global variable to store Ivybus received pitch values
+# yaw_values = None           # Global variable to store Ivybus received pitch values
 
-                                      # FUNCTION -> VISUALISE LEGEND #
+X_m = []                    # Variable to save measured X value
+Y_m = []                    # Variable to save measured Y value
+Z_m = []                    # Variable to save measured Z value
+time_m = []                 # Variable to save measured time
+
+#                                   # FUNCTIONS -> IVYBUS MESSAGES #
+# # ------------------------------------------------------------------------------------------------------- #
+# # --------- Bind to Drone Attitude Message --------- # 
+# def attitude_callback(ac_id, pprzMsg):
+#     global pitch_values
+#     global roll_values
+#     global yaw_values
+    
+#     pitch = pprzMsg['theta']
+#     roll  = pprzMsg['phi']
+#     yaw   = pprzMsg['psi']
+#     pitch_values = pitch
+#     roll_values  = roll
+#     yaw_values   = yaw
+
+# # --------- Get Attitude Values --------- # 
+# def get_attitude_values():
+#     global pitch_values
+#     global roll_values
+#     global yaw_values
+#     return pitch_values, roll_values, yaw_values
+
+                                # FUNCTION -> VISUALISE LEGEND #
 # ------------------------------------------------------------------------------------------------------- #
 def visualizeLegend(frame_legend, width, height):
   # --------- Show "ALTITUDE" --------- # 
@@ -55,7 +94,7 @@ def visualizeLegend(frame_legend, width, height):
   frame_legend = cv2.putText(frame_legend, text, org, font, fontScale, color, lineThickness, cv2.LINE_AA)
   
   # --------- Draw Legend Outline --------- # 
-  frame_legend = cv2.rectangle(frame_legend, (int(0.02*width), int(0.01*height)), (int(0.155*width), int(0.175*height)), (255, 255, 255), 2)
+  frame_legend = cv2.rectangle(frame_legend, (int(0.02*width), int(0.01*height)), (int(0.155*width), int(0.25*height)), (255, 255, 255), 2)
 
   # --------- Draw Reference System --------- # 
   frame_legend = cv2.line(frame_legend,(int(0.05*width), int(0.08*height)), (int(0.09*width), int(0.08*height)), (0, 0, 255), 3)                   # X = red
@@ -68,13 +107,34 @@ def visualizeLegend(frame_legend, width, height):
 
   return frame_legend
 
+                                # FUNCTION -> VISUALISE DRONE ATTITUDE #
+# ------------------------------------------------------------------------------------------------------- #
+def visualiseDroneAttitude(frame_attitude, width, height, pitch_visual, roll_visual, yaw_visual):
+  font = cv2.FONT_HERSHEY_PLAIN
+  fontScale = 1.25
+  color = (255, 255, 255)
+  lineThickness = 2
+  
+  org_1 = (int(0.03*width), int(0.175*height))
+  text_1 = f"Pitch: {round(pitch_visual, 2)}[deg.]"
+  frame_attitude = cv2.putText(frame_attitude, text_1, org_1, font, fontScale, color, lineThickness, cv2.LINE_AA)
+
+  org_2 = (int(0.03*width), int(0.2*height))
+  text_2 = f"Roll: {round(roll_visual, 2)}[deg.]"
+  frame_attitude = cv2.putText(frame_attitude, text_2, org_2, font, fontScale, color, lineThickness, cv2.LINE_AA)
+
+  org_3 = (int(0.03*width), int(0.225*height))
+  text_3 = f"Yaw: {round(yaw_visual, 2)}[deg.]"
+  frame_attitude = cv2.putText(frame_attitude, text_3, org_3, font, fontScale, color, lineThickness, cv2.LINE_AA)
+
+  return frame_attitude
+
                                  # FUNCTION -> VISUALISE MARKER POSITION #
 # ------------------------------------------------------------------------------------------------------- #
 def visualiseMarkerPosition(X_visual, Y_visual, Z_visual, frame_pos, width, height, r, t, C, d):
   # --------- Create Projection from 3D to 2D --------- # 
   axes_3D = np.float32([[1, 0, 0], [0, -1, 0], [0, 0, -1], [0, 0, 0]]).reshape(-1, 3)    # Points in 3D space
   axisPoints, _ = cv2.projectPoints(axes_3D, r, t, C, d)                                 # Project 3D points into 2D image plane
-
 
   # --------- Create X-Marker Position Visualisation --------- # 
   X_start_Xline = width/2
@@ -135,20 +195,31 @@ def visualiseMarkerPosition(X_visual, Y_visual, Z_visual, frame_pos, width, heig
   X_end_Distline =  axisPoints[3][0][0]
   Y_end_Distline = axisPoints[3][0][1]
   cv2.line(frame_pos, (int(X_start_Distline), int(Y_start_Distline)), (int(X_end_Distline), int(Y_end_Distline)), (255, 255, 255), 3)
-  
+
   return frame_pos
+
+#                                       # Ivybus INITIALISATION #
+# # ------------------------------------------------------------------------------------------------------- #
+# # --------- Create Ivy Interface --------- # 
+# ivy = pprzlink.ivy.IvyMessagesInterface(agent_name="ArucoMarker", start_ivy=False, ivy_bus="127.255.255.255:2010")
+
+# # --------- Start Ivy Interface --------- # 
+# ivy.start()
+
+# # --------- Subscribe to Ivy Messages --------- # 
+# ivy.subscribe(attitude_callback, message.PprzMessage("telemetry", "NPS_RATE_ATTITUDE"))
 
                                               # VIDEO #
 # ------------------------------------------------------------------------------------------------------- #
 # --------- Load Video --------- #
-path = '/home/kevin/IMAV2023/Live_Videos/VALKENBURG_20_07_23_TEST7_SHORTENED.mp4'    # Define video path	
-# path = '/home/kevin/IMAV2023/Aruco_Marker_Data/06_07_2023/Videos/2023_0706_001.MP4'    # Define video path	
+path = '/home/kevin/IMAV2023/Live_Videos/VALKENBURG_20_07_23_TEST7.mp4'               # Define video path	
+# path = '/home/kevin/IMAV2023/Aruco_Marker_Data/06_07_2023/Videos/2023_0706_001.MP4' # Define video path	
 
-cap = cv2.VideoCapture(path)                                                         # Create a VideoCapture object
-FPS = cap.get(cv2.CAP_PROP_FPS)                                                      # Read FPS from input video
+cap = cv2.VideoCapture(path)                                                          # Create a VideoCapture object r
+FPS = cap.get(cv2.CAP_PROP_FPS)                                                       # Read FPS from input video
 
 # --------- Functioning? --------- #
-if (cap.isOpened()== False):                                                         # Check if camera opened successfully
+if (cap.isOpened()== False):                                                          # Check if camera opened successfully
   print("Error: cannot open video file or stream")
  
 # --------- Resolution --------- #
@@ -157,7 +228,7 @@ frame_height = int(cap.get(4))
 
 # --------- Write Video Setup --------- #
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')                                                     # Define video codec (FOURCC code)
-out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/Results/VALKENBURG_20_07_23_RESULT9.mp4', 
+out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/Results/VALKENBURG_20_07_23_RESULT8.mp4', 
                       fourcc, FPS, (frame_width, frame_height))                                      # Create VideoWriter object 
 
                                     # ARUCO MARKER DETECTION SETUP #
@@ -202,6 +273,12 @@ while(cap.isOpened()):
   current_time = live_time - start_time
   time_m.append(current_time)
 
+  # # --------- Get Attitude Values from Ivybus --------- # 
+  # pitch, roll, yaw = get_attitude_values()
+  pitch = 0
+  roll  = 0
+  yaw   = 0
+
   # --------- Read Frame-by-Frame --------- # 
   ret, frame = cap.read()
 
@@ -214,6 +291,14 @@ while(cap.isOpened()):
     
     # --------- Show Legend --------- # 
     frame = visualizeLegend(frame, frame_width, frame_height)
+
+    # --------- Show Drone Attitude --------- # 
+    if pitch is not None:
+      pitch = float(pitch)
+      roll  = float(roll)
+      yaw   = float(yaw)
+
+      frame = visualiseDroneAttitude(frame, frame_width, frame_height, pitch, roll, yaw)
 
     if len(markerCorners) > 0:                                               # At least one marker detected       
       # --------- Aruco Marker Pose Estimation --------- # 
@@ -238,7 +323,7 @@ while(cap.isOpened()):
       frame = visualiseMarkerPosition(X, Y, Z, frame, frame_width, frame_height, rvec, tvec, camera_Matrix, distortion_Coeff)
 
     # --------- Write Video --------- # 
-    out.write(frame)
+    # out.write(frame)
     
     # --------- Display Output Frame --------- # 
     cv2.imshow('Frame', frame)
@@ -254,7 +339,7 @@ while(cap.isOpened()):
 
                                             # SAVE MEASURED VARIABLES #
 # ------------------------------------------------------------------------------------------------------- #
-# --------- Outdoor Tests --------- # 
+# # --------- Outdoor Tests --------- # 
 # with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/PRE_VALKENBURG_20_07_23_TEST_X', 'w') as csvfile:
 #     writer=csv.writer(csvfile, delimiter=',')
 #     writer.writerows(zip(X_m, time_m))
@@ -282,9 +367,10 @@ while(cap.isOpened()):
 
                                             # CLOSE CODE PROPERLY #
 # ------------------------------------------------------------------------------------------------------- #
-# --------- Release Objects --------- # 
+# --------- Release/Stop Objects --------- # 
 cap.release()
 out.release()
+# ivy.shutdown()
 
 # --------- Close Frames --------- # 
 cv2.destroyAllWindows()
