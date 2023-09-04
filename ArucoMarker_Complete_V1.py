@@ -1,9 +1,9 @@
 # --------------------------------------------------------------------------
 # Author:           Kevin Malkow
-# Date:             26/07/23
+# Date:             27/07/23
 # Affiliation:      TU Delft, IMAV 2023
 #
-# Version:          4.2 
+# Version:          4.3 
 # 
 # Description:  
 # Detect AND track Aruco marker from pre-recorded videos
@@ -11,11 +11,13 @@
 # Version updates:
 # - Cleaned the code to improve performance and added new visuals
 # - Read Ivybus messages and save values
-# k
-# Upcoming Version: 5.2
+# - Perspective transform -> account for drone attitude to always get birds-eye view -> WORK IN PROGRESS
+# 
+# Upcoming Version: 5.3
 # Detect AND track Aruco marker from video live-stream -> 
 #   - Cleaned code 
 #   - Ivybus messages
+#   - Perspective transform 
 #  -------------------------------------------------------------------------
 
                                         # LIBRARY DEFINITION #
@@ -24,19 +26,20 @@
 import time
 import math
 import csv
-# import sys
+import sys
 import cv2
 import cv2.aruco
-# import threading
+import threading
 import numpy as np
+from typing import Tuple
 
-# # --------- Ivybus Specific --------- # 
-# sys.path.append("/home/kevin/paparazzi/sw/ext/pprzlink/lib/v2.0/python/")
+# --------- Ivybus Specific --------- # 
+sys.path.append("/home/kevin/paparazzi/sw/ext/pprzlink/lib/v2.0/python/")
 
-# from ivy.std_api import *
-# import pprzlink.ivy
-# import pprzlink.messages_xml_map as messages_xml_map
-# import pprzlink.message as message          
+from ivy.std_api import *
+import pprzlink.ivy
+import pprzlink.messages_xml_map as messages_xml_map
+import pprzlink.message as message          
 
                                       # LOAD CAMERA PARAMETERS #
 # ------------------------------------------------------------------------------------------------------- #
@@ -50,36 +53,67 @@ cv_file.release()
 # ------------------------------------------------------------------------------------------------------- #
 MARKER_SIZE = 1.107         # Size of Aruco marker in [m] -> 1.107 [m]||0.35 [m]
 
-# pitch_values = None         # Global variable to store Ivybus received pitch values
-# roll_values = None          # Global variable to store Ivybus received pitch values
-# yaw_values = None           # Global variable to store Ivybus received pitch values
+pitch_values = None         # Global variable to store Ivybus received pitch values
+roll_values = None          # Global variable to store Ivybus received pitch values
+yaw_values = None           # Global variable to store Ivybus received pitch values
 
 X_m = []                    # Variable to save measured X value
 Y_m = []                    # Variable to save measured Y value
 Z_m = []                    # Variable to save measured Z value
 time_m = []                 # Variable to save measured time
 
-#                                   # FUNCTIONS -> IVYBUS MESSAGES #
-# # ------------------------------------------------------------------------------------------------------- #
-# # --------- Bind to Drone Attitude Message --------- # 
-# def attitude_callback(ac_id, pprzMsg):
-#     global pitch_values
-#     global roll_values
-#     global yaw_values
+                                  # FUNCTIONS -> IVYBUS MESSAGES #
+# ------------------------------------------------------------------------------------------------------- #
+# --------- Bind to Drone Attitude Message --------- # 
+def attitude_callback(ac_id, pprzMsg):
+    global pitch_values
+    global roll_values
+    global yaw_values
     
-#     pitch = pprzMsg['theta']
-#     roll  = pprzMsg['phi']
-#     yaw   = pprzMsg['psi']
-#     pitch_values = pitch
-#     roll_values  = roll
-#     yaw_values   = yaw
+    pitch = pprzMsg['theta']
+    roll  = pprzMsg['phi']
+    yaw   = pprzMsg['psi']
+    pitch_values = pitch
+    roll_values  = roll
+    yaw_values   = yaw
 
-# # --------- Get Attitude Values --------- # 
-# def get_attitude_values():
-#     global pitch_values
-#     global roll_values
-#     global yaw_values
-#     return pitch_values, roll_values, yaw_values
+# --------- Get Attitude Values --------- # 
+def get_attitude_values():
+    global pitch_values
+    global roll_values
+    global yaw_values
+    return pitch_values, roll_values, yaw_values
+
+                                   # FUNCTIONS -> NED CONVERSION #
+# ------------------------------------------------------------------------------------------------------- #
+def ned_vector_calc(pitch, roll, yaw, local_vector):
+    # Yaw (rotation around z-axis)
+    R_yaw = np.array([
+        [np.cos(yaw), -np.sin(yaw), 0],
+        [np.sin(yaw), np.cos(yaw), 0],
+        [0, 0, 1]
+    ])
+
+    # Pitch (rotation around y-axis)
+    R_pitch = np.array([
+        [np.cos(pitch), 0, np.sin(pitch)],
+        [0, 1, 0],
+        [-np.sin(pitch), 0, np.cos(pitch)]
+    ])
+
+    # Roll (rotation around x-axis)
+    R_roll = np.array([
+        [1, 0, 0],
+        [0, np.cos(roll), -np.sin(roll)],
+        [0, np.sin(roll), np.cos(roll)]
+    ])
+
+    R_combined = R_yaw @ R_pitch @ R_roll 
+
+    ned_vector = np.dot(R_combined, local_vector)
+    north, east, down = ned_vector.squeeze()
+
+    return north, east, down
 
                                 # FUNCTION -> VISUALISE LEGEND #
 # ------------------------------------------------------------------------------------------------------- #
@@ -110,6 +144,10 @@ def visualizeLegend(frame_legend, width, height):
                                 # FUNCTION -> VISUALISE DRONE ATTITUDE #
 # ------------------------------------------------------------------------------------------------------- #
 def visualiseDroneAttitude(frame_attitude, width, height, pitch_visual, roll_visual, yaw_visual):
+  pitch_visual = math.degrees(pitch_visual)
+  roll_visual  = math.degrees(roll_visual)
+  yaw_visual   = math.degrees(yaw_visual)
+  
   font = cv2.FONT_HERSHEY_PLAIN
   fontScale = 1.25
   color = (255, 255, 255)
@@ -198,22 +236,21 @@ def visualiseMarkerPosition(X_visual, Y_visual, Z_visual, frame_pos, width, heig
 
   return frame_pos
 
-#                                       # Ivybus INITIALISATION #
-# # ------------------------------------------------------------------------------------------------------- #
-# # --------- Create Ivy Interface --------- # 
-# ivy = pprzlink.ivy.IvyMessagesInterface(agent_name="ArucoMarker", start_ivy=False, ivy_bus="127.255.255.255:2010")
+                                      # Ivybus INITIALISATION #
+# ------------------------------------------------------------------------------------------------------- #
+# --------- Create Ivy Interface --------- # 
+ivy = pprzlink.ivy.IvyMessagesInterface(agent_name="ArucoMarker", start_ivy=False, ivy_bus="127.255.255.255:2010")
 
-# # --------- Start Ivy Interface --------- # 
-# ivy.start()
+# --------- Start Ivy Interface --------- # 
+ivy.start()
 
-# # --------- Subscribe to Ivy Messages --------- # 
-# ivy.subscribe(attitude_callback, message.PprzMessage("telemetry", "NPS_RATE_ATTITUDE"))
+# --------- Subscribe to Ivy Messages --------- # 
+ivy.subscribe(attitude_callback, message.PprzMessage("telemetry", "NPS_RATE_ATTITUDE"))
 
                                               # VIDEO #
 # ------------------------------------------------------------------------------------------------------- #
 # --------- Load Video --------- #
-path = '/home/kevin/IMAV2023/Live_Videos/VALKENBURG_20_07_23_TEST7.mp4'               # Define video path	
-# path = '/home/kevin/IMAV2023/Aruco_Marker_Data/06_07_2023/Videos/2023_0706_001.MP4' # Define video path	
+path = '/home/kevin/IMAV2023/Live_Videos/VALKENBURG_20_07_23_TEST7_SHORTENED.mp4'               # Define video path	
 
 cap = cv2.VideoCapture(path)                                                          # Create a VideoCapture object r
 FPS = cap.get(cv2.CAP_PROP_FPS)                                                       # Read FPS from input video
@@ -228,7 +265,7 @@ frame_height = int(cap.get(4))
 
 # --------- Write Video Setup --------- #
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')                                                     # Define video codec (FOURCC code)
-out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/Results/VALKENBURG_20_07_23_RESULT8.mp4', 
+out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/Results/VALKENBURG_20_07_23_RESULT11.mp4', 
                       fourcc, FPS, (frame_width, frame_height))                                      # Create VideoWriter object 
 
                                     # ARUCO MARKER DETECTION SETUP #
@@ -274,17 +311,81 @@ while(cap.isOpened()):
   time_m.append(current_time)
 
   # # --------- Get Attitude Values from Ivybus --------- # 
-  # pitch, roll, yaw = get_attitude_values()
-  pitch = 0
-  roll  = 0
-  yaw   = 0
+  pitch, roll, yaw = get_attitude_values()
 
   # --------- Read Frame-by-Frame --------- # 
   ret, frame = cap.read()
 
-  if ret == True:                                                            # If frame read correctly          
+  if ret == True: # If frame read correctly          
     # --------- Convert to Grayscale --------- # 
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    # # --------- Apply Perspective Transform -> WORK IN PROGRESS --------- # 
+    # if pitch is not None:
+    #   pitch = float(pitch)
+    #   roll  = float(roll)
+    #   yaw   = float(yaw)
+
+    #   pitch = math.radians(pitch)
+    #   roll  = math.radians(roll)
+    #   yaw   = math.radians(yaw)  
+    #   # Rotation matrices around the X (roll), Y (pitch), and Z (yaw) axis
+    #   RX = np.array([[1, 0, 0], [0, math.cos(roll), -math.sin(roll)], [0, math.sin(roll), math.cos(roll)]])
+    #   RY = np.array([[math.cos(pitch),  0, math.sin(pitch)], [0, 1, 0], [-math.sin(pitch), 0, math.cos(pitch)]])
+    #   RZ = np.array([[math.cos(yaw), -math.sin(yaw), 0], [math.sin(yaw), math.cos(yaw), 0], [0, 0, 1]])
+      
+    #   R = RZ * RY * RX
+
+    #   # Transformation matrix
+    #   dx = 0
+    #   dy = 0
+    #   dz = 1
+    #   T = np.array([[1, 0, (frame_width/2 - dx)], [0, 1, (frame_height/2 - dy)], [0, 0, dz]])
+
+    #   H = camera_Matrix * R * np.linalg.inv(camera_Matrix)
+
+    #   W = T * H
+
+    #   #       # center of source image
+    #   # si_c = [x//2 for x in image.shape] + [1]
+    #   # # find where center of source image will be after warping without comepensating for any offset
+    #   # wsi_c = np.dot(H, si_c)
+    #   # wsi_c = [x/wsi_c[2] for x in wsi_c]
+    #   # # warping output image size
+    #   # stitched_frame_size = tuple(2*x for x in image.shape)
+    #   # # center of warping output image
+    #   # wf_c = image.shape
+    #   # # calculate offset for translation of warped image
+    #   # x_offset = wf_c[0] - wsi_c[0]
+    #   # y_offset = wf_c[1] - wsi_c[1]
+    #   # # translation matrix
+    #   # T = np.array([[1, 0, x_offset], [0, 1, y_offset], [0, 0, 1]])
+    #   # # translate tomography matrix
+    #   # translated_H = np.dot(T.H)
+
+    #   #   # Input: a source image and perspective transform
+    #   # # Output: a warped image and 2 translation terms
+    #   # def perspective_warp(image: np.ndarray, transform: np.ndarray) -> Tuple[np.ndarray, int, int]:
+    #   #   w = frame_width
+    #   #   h = frame_height
+    #   #   corners_bef = np.float32([[0, 0], [w, 0], [w, h], [0, h]]).reshape(-1, 1, 2)
+    #   #   corners_aft = cv2.perspectiveTransform(corners_bef, transform)
+    #   #   xmin = math.floor(corners_aft[:, 0, 0].min())
+    #   #   ymin = math.floor(corners_aft[:, 0, 1].min())
+    #   #   xmax = math.ceil(corners_aft[:, 0, 0].max())
+    #   #   ymax = math.ceil(corners_aft[:, 0, 1].max())
+    #   #   x_adj = math.floor(xmin - corners_aft[0, 0, 0])
+    #   #   y_adj = math.floor(ymin - corners_aft[0, 0, 1])
+    #   #   translate = np.eye(3)
+    #   #   translate[0, 2] = -xmin
+    #   #   translate[1, 2] = -ymin
+    #   #   corrected_transform = np.matmul(translate, transform)
+    #   #   return cv2.warpPerspective(image, corrected_transform, (math.ceil(xmax - xmin), math.ceil(ymax - ymin)))
+
+    #   # frame_temp = np.array(frame)
+    #   # frame = perspective_warp(frame_temp, W)
+
+    #   frame = cv2.warpPerspective(frame, W, (frame_width, frame_height), cv2.INTER_LANCZOS4);
 
     # --------- Aruco Marker Detection --------- # 
     (markerCorners, _, _) = arucoDetector.detectMarkers(gray_frame)
@@ -300,10 +401,10 @@ while(cap.isOpened()):
 
       frame = visualiseDroneAttitude(frame, frame_width, frame_height, pitch, roll, yaw)
 
-    if len(markerCorners) > 0:                                               # At least one marker detected       
+    if len(markerCorners) > 0: # At least one marker detected       
       # --------- Aruco Marker Pose Estimation --------- # 
       rvec, tvec, _ = cv2.aruco.estimatePoseSingleMarkers(markerCorners, MARKER_SIZE, camera_Matrix, distortion_Coeff)
-      (rvec - tvec).any()                                                    # Remove Numpy value array error
+      (rvec - tvec).any()    # Remove Numpy value array error
 
       # --------- Save and Print X, Y, and Z --------- # 
       X = tvec[0][0][0]
@@ -319,11 +420,39 @@ while(cap.isOpened()):
       print(f"ALTITUDE: {Z}")
       print("-------------------------------") 
 
+      if pitch is not None:
+        
+        pitch = float(pitch)
+        roll  = float(roll)
+        yaw   = float(yaw)
+
+        pitch = math.radians(pitch)
+        roll  = math.radians(roll)
+        yaw   = math.radians(yaw)
+
+        # print("pitch: ", pitch)
+        # print("roll: ", roll)
+        # print("yaw: ", yaw)
+        # print("")
+
+        # # Drone Outputs
+        # lat_drone = 1  # Replace with actual latitude of the drone
+        # lon_drone = 1  # Replace with actual longitude of the drone
+        # alt_drone = 1  # Replace with actual altitude of the drone
+
+        aruco_position = np.array([[X], [Y], [Z]])
+
+        # Convert local coordinates to NED coordinates with respect to the drone
+        ned_north, ned_east, ned_down = ned_vector_calc(pitch, roll, yaw, aruco_position)
+
+        # Print NED coordinates
+        print("NED Coordinates (North, East, Down):", ned_north, ned_east, ned_down)
+
       # --------- Visualise Aruco Marker Position --------- # 
       frame = visualiseMarkerPosition(X, Y, Z, frame, frame_width, frame_height, rvec, tvec, camera_Matrix, distortion_Coeff)
 
     # --------- Write Video --------- # 
-    # out.write(frame)
+    out.write(frame)
     
     # --------- Display Output Frame --------- # 
     cv2.imshow('Frame', frame)
@@ -370,7 +499,7 @@ while(cap.isOpened()):
 # --------- Release/Stop Objects --------- # 
 cap.release()
 out.release()
-# ivy.shutdown()
+ivy.shutdown()
 
 # --------- Close Frames --------- # 
 cv2.destroyAllWindows()
@@ -380,137 +509,138 @@ cv2.destroyAllWindows()
 
 
 
-
-
-
-
-# ----------------------------------------------------------- FOR NOW -----------------------------------------------------------------
-
-import pymap3d
-import numpy as np
-import sys
-import time 
-import math
-
-sys.path.append("/home/sergio/paparazzi/sw/ext/pprzlink/lib/v2.0/python/")
-
-from ivy.std_api import *
-import pprzlink.ivy
-import pprzlink.messages_xml_map as messages_xml_map
-import pprzlink.message as message       
-
-
-pitch_values = None         # Global variable to store Ivybus received pitch values
-roll_values = None          # Global variable to store Ivybus received pitch values
-yaw_values = None           # Global variable to store Ivybus received pitch values
-
-
-# --------- Bind to Drone Attitude Message --------- # 
-def attitude_callback(ac_id, pprzMsg):
-    global pitch_values
-    global roll_values
-    global yaw_values
     
-    pitch = pprzMsg['theta']
-    roll  = pprzMsg['phi']
-    yaw   = pprzMsg['psi']
-    pitch_values = pitch
-    roll_values  = roll
-    yaw_values   = yaw
-
-# --------- Get Attitude Values --------- # 
-def get_attitude_values():
-    global pitch_values
-    global roll_values
-    global yaw_values
-    return pitch_values, roll_values, yaw_values
 
 
-                                      # Ivybus INITIALISATION #
-# ------------------------------------------------------------------------------------------------------- #
-# --------- Create Ivy Interface --------- # 
-ivy = pprzlink.ivy.IvyMessagesInterface(agent_name="ArucoMarker", start_ivy=False, ivy_bus="127.255.255.255:2010")
-
-# --------- Start Ivy Interface --------- # 
-ivy.start()
-
-# --------- Subscribe to Ivy Messages --------- # 
-ivy.subscribe(attitude_callback, message.PprzMessage("telemetry", "NPS_RATE_ATTITUDE"))
-
-                                      # Time Delay Before Loop #
-# ------------------------------------------------------------------------------------------------------- #
 
 
-pitch, roll, yaw = get_attitude_values()
+# # ----------------------------------------------------------- FOR NOW -----------------------------------------------------------------
 
-while pitch is None and roll is None and yaw is None:
-    pitch, roll, yaw = get_attitude_values()
+# import pymap3d
+# import numpy as np
+# import sys
+# import time 
+# import math
 
-while True:
-    pitch, roll, yaw = get_attitude_values()
+# sys.path.append("/home/sergio/paparazzi/sw/ext/pprzlink/lib/v2.0/python/")
 
-    pitch_fl = float(pitch)
-    roll_fl = float(roll)
-    yaw_fl = float(yaw)
+# from ivy.std_api import *
+# import pprzlink.ivy
+# import pprzlink.messages_xml_map as messages_xml_map
+# import pprzlink.message as message       
 
-    pitch_rad = math.radians(pitch_fl)
-    roll_rad = math.radians(roll_fl)
-    yaw_rad = math.radians(yaw_fl)
 
-    print("pitch: ", pitch_rad)
-    print("roll: ", roll_rad)
-    print("yaw: ", yaw_rad)
-    print("")
+# pitch_values = None         # Global variable to store Ivybus received pitch values
+# roll_values = None          # Global variable to store Ivybus received pitch values
+# yaw_values = None           # Global variable to store Ivybus received pitch values
+
+
+# # --------- Bind to Drone Attitude Message --------- # 
+# def attitude_callback(ac_id, pprzMsg):
+#     global pitch_values
+#     global roll_values
+#     global yaw_values
+    
+#     pitch = pprzMsg['theta']
+#     roll  = pprzMsg['phi']
+#     yaw   = pprzMsg['psi']
+#     pitch_values = pitch
+#     roll_values  = roll
+#     yaw_values   = yaw
+
+# # --------- Get Attitude Values --------- # 
+# def get_attitude_values():
+#     global pitch_values
+#     global roll_values
+#     global yaw_values
+#     return pitch_values, roll_values, yaw_values
+
+
+#                                       # Ivybus INITIALISATION #
+# # ------------------------------------------------------------------------------------------------------- #
+# # --------- Create Ivy Interface --------- # 
+# ivy = pprzlink.ivy.IvyMessagesInterface(agent_name="ArucoMarker", start_ivy=False, ivy_bus="127.255.255.255:2010")
+
+# # --------- Start Ivy Interface --------- # 
+# ivy.start()
+
+# # --------- Subscribe to Ivy Messages --------- # 
+# ivy.subscribe(attitude_callback, message.PprzMessage("telemetry", "NPS_RATE_ATTITUDE"))
+
+#                                       # Time Delay Before Loop #
+# # ------------------------------------------------------------------------------------------------------- #
+
+
+# pitch, roll, yaw = get_attitude_values()
+
+# while pitch is None and roll is None and yaw is None:
+#     pitch, roll, yaw = get_attitude_values()
+
+# while True:
+#     pitch, roll, yaw = get_attitude_values()
+
+#     pitch_fl = float(pitch)
+#     roll_fl = float(roll)
+#     yaw_fl = float(yaw)
+
+#     pitch_rad = math.radians(pitch_fl)
+#     roll_rad = math.radians(roll_fl)
+#     yaw_rad = math.radians(yaw_fl)
+
+#     print("pitch: ", pitch_rad)
+#     print("roll: ", roll_rad)
+#     print("yaw: ", yaw_rad)
+#     print("")
 
     
-    # Drone Outputs
-    lat_drone = 1  # Replace with actual latitude of the drone
-    lon_drone = 1  # Replace with actual longitude of the drone
-    alt_drone = 1  # Replace with actual altitude of the drone
+#     # Drone Outputs
+#     lat_drone = 1  # Replace with actual latitude of the drone
+#     lon_drone = 1  # Replace with actual longitude of the drone
+#     alt_drone = 1  # Replace with actual altitude of the drone
 
-    # Local coordinates of the ArUco marker with respect to the drone
-    local_x = 2  # Replace with actual local x-coordinate
-    local_y = 3  # Replace with actual local y-coordinate
-    local_z = 4  # Replace with actual local z-coordinate
+#     # Local coordinates of the ArUco marker with respect to the drone
+#     local_x = 2  # Replace with actual local x-coordinate
+#     local_y = 3  # Replace with actual local y-coordinate
+#     local_z = 4  # Replace with actual local z-coordinate
 
-    local_vector = np.array([[local_x], [local_y], [local_z]])
+#     local_vector = np.array([[local_x], [local_y], [local_z]])
 
-    # STEP 2: Define Rotation Matrix (Yaw, Pitch, Roll)
-    def ned_vector_calc(yaw, pitch, roll, local_vector):
-        # Yaw (rotation around z-axis)
-        R_yaw = np.array([
-            [np.cos(yaw), -np.sin(yaw), 0],
-            [np.sin(yaw), np.cos(yaw), 0],
-            [0, 0, 1]
-        ])
+#     # STEP 2: Define Rotation Matrix (Yaw, Pitch, Roll)
+#     def ned_vector_calc(yaw, pitch, roll, local_vector):
+#         # Yaw (rotation around z-axis)
+#         R_yaw = np.array([
+#             [np.cos(yaw), -np.sin(yaw), 0],
+#             [np.sin(yaw), np.cos(yaw), 0],
+#             [0, 0, 1]
+#         ])
 
-        # Pitch (rotation around y-axis)
-        R_pitch = np.array([
-            [np.cos(pitch), 0, np.sin(pitch)],
-            [0, 1, 0],
-            [-np.sin(pitch), 0, np.cos(pitch)]
-        ])
+#         # Pitch (rotation around y-axis)
+#         R_pitch = np.array([
+#             [np.cos(pitch), 0, np.sin(pitch)],
+#             [0, 1, 0],
+#             [-np.sin(pitch), 0, np.cos(pitch)]
+#         ])
 
-        # Roll (rotation around x-axis)
-        R_roll = np.array([
-            [1, 0, 0],
-            [0, np.cos(roll), -np.sin(roll)],
-            [0, np.sin(roll), np.cos(roll)]
-        ])
+#         # Roll (rotation around x-axis)
+#         R_roll = np.array([
+#             [1, 0, 0],
+#             [0, np.cos(roll), -np.sin(roll)],
+#             [0, np.sin(roll), np.cos(roll)]
+#         ])
 
-        R_combined = R_yaw @ R_pitch @ R_roll 
+#         R_combined = R_yaw @ R_pitch @ R_roll 
 
-        ned_vector = np.dot(R_combined, local_vector)
-        north, east, down = ned_vector.squeeze()
+#         ned_vector = np.dot(R_combined, local_vector)
+#         north, east, down = ned_vector.squeeze()
 
-        return north, east, down
+#         return north, east, down
 
-    # Convert local coordinates to NED coordinates with respect to the drone
-    ned_north, ned_east, ned_down = ned_vector_calc(yaw_rad, pitch_rad, roll_rad, local_vector)
+#     # Convert local coordinates to NED coordinates with respect to the drone
+#     ned_north, ned_east, ned_down = ned_vector_calc(yaw_rad, pitch_rad, roll_rad, local_vector)
 
-    # Print NED coordinates
-    print("NED Coordinates (North, East, Down):", ned_north, ned_east, ned_down)
+#     # Print NED coordinates
+#     print("NED Coordinates (North, East, Down):", ned_north, ned_east, ned_down)
 
 
-ivy.shutdown()
+# ivy.shutdown()
 

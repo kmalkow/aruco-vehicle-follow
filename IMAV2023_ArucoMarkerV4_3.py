@@ -358,7 +358,7 @@ while(cap.isOpened()):
       frame = cv2.warpPerspective(frame, W, (frame_width, frame_height), cv2.INTER_LANCZOS4);
 
     # --------- Aruco Marker Detection --------- # 
-    (markerCorners, _, _) = arucoDetector.detectMarkers(frame)
+    (markerCorners, _, _) = arucoDetector.detectMarkers(gray_frame)
     
     # --------- Show Legend --------- # 
     frame = visualizeLegend(frame, frame_width, frame_height)
