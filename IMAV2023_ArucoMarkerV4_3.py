@@ -11,13 +11,13 @@
 # Version updates:
 # - Cleaned the code to improve performance and added new visuals
 # - Read Ivybus messages and save values
-# - Perspective transform -> account for drone attitude to always get birds-eye view
+# - Perspective transform -> account for drone attitude to always get birds-eye view -> WORK IN PROGRESS
 # 
 # Upcoming Version: 5.3
 # Detect AND track Aruco marker from video live-stream -> 
 #   - Cleaned code 
 #   - Ivybus messages
-#   - Perspective transform
+#   - Perspective transform 
 #  -------------------------------------------------------------------------
 
                                         # LIBRARY DEFINITION #
@@ -26,20 +26,20 @@
 import time
 import math
 import csv
-# import sys
+import sys
 import cv2
 import cv2.aruco
-# import threading
+import threading
 import numpy as np
 from typing import Tuple
 
-# # --------- Ivybus Specific --------- # 
-# sys.path.append("/home/kevin/paparazzi/sw/ext/pprzlink/lib/v2.0/python/")
+# --------- Ivybus Specific --------- # 
+sys.path.append("/home/kevin/paparazzi/sw/ext/pprzlink/lib/v2.0/python/")
 
-# from ivy.std_api import *
-# import pprzlink.ivy
-# import pprzlink.messages_xml_map as messages_xml_map
-# import pprzlink.message as message          
+from ivy.std_api import *
+import pprzlink.ivy
+import pprzlink.messages_xml_map as messages_xml_map
+import pprzlink.message as message          
 
                                       # LOAD CAMERA PARAMETERS #
 # ------------------------------------------------------------------------------------------------------- #
@@ -53,36 +53,36 @@ cv_file.release()
 # ------------------------------------------------------------------------------------------------------- #
 MARKER_SIZE = 1.107         # Size of Aruco marker in [m] -> 1.107 [m]||0.35 [m]
 
-# pitch_values = None         # Global variable to store Ivybus received pitch values
-# roll_values = None          # Global variable to store Ivybus received pitch values
-# yaw_values = None           # Global variable to store Ivybus received pitch values
+pitch_values = None         # Global variable to store Ivybus received pitch values
+roll_values = None          # Global variable to store Ivybus received pitch values
+yaw_values = None           # Global variable to store Ivybus received pitch values
 
 X_m = []                    # Variable to save measured X value
 Y_m = []                    # Variable to save measured Y value
 Z_m = []                    # Variable to save measured Z value
 time_m = []                 # Variable to save measured time
 
-#                                   # FUNCTIONS -> IVYBUS MESSAGES #
-# # ------------------------------------------------------------------------------------------------------- #
-# # --------- Bind to Drone Attitude Message --------- # 
-# def attitude_callback(ac_id, pprzMsg):
-#     global pitch_values
-#     global roll_values
-#     global yaw_values
+                                  # FUNCTIONS -> IVYBUS MESSAGES #
+# ------------------------------------------------------------------------------------------------------- #
+# --------- Bind to Drone Attitude Message --------- # 
+def attitude_callback(ac_id, pprzMsg):
+    global pitch_values
+    global roll_values
+    global yaw_values
     
-#     pitch = pprzMsg['theta']
-#     roll  = pprzMsg['phi']
-#     yaw   = pprzMsg['psi']
-#     pitch_values = pitch
-#     roll_values  = roll
-#     yaw_values   = yaw
+    pitch = pprzMsg['theta']
+    roll  = pprzMsg['phi']
+    yaw   = pprzMsg['psi']
+    pitch_values = pitch
+    roll_values  = roll
+    yaw_values   = yaw
 
-# # --------- Get Attitude Values --------- # 
-# def get_attitude_values():
-#     global pitch_values
-#     global roll_values
-#     global yaw_values
-#     return pitch_values, roll_values, yaw_values
+# --------- Get Attitude Values --------- # 
+def get_attitude_values():
+    global pitch_values
+    global roll_values
+    global yaw_values
+    return pitch_values, roll_values, yaw_values
 
                                 # FUNCTION -> VISUALISE LEGEND #
 # ------------------------------------------------------------------------------------------------------- #
@@ -205,22 +205,21 @@ def visualiseMarkerPosition(X_visual, Y_visual, Z_visual, frame_pos, width, heig
 
   return frame_pos
 
-#                                       # Ivybus INITIALISATION #
-# # ------------------------------------------------------------------------------------------------------- #
-# # --------- Create Ivy Interface --------- # 
-# ivy = pprzlink.ivy.IvyMessagesInterface(agent_name="ArucoMarker", start_ivy=False, ivy_bus="127.255.255.255:2010")
+                                      # Ivybus INITIALISATION #
+# ------------------------------------------------------------------------------------------------------- #
+# --------- Create Ivy Interface --------- # 
+ivy = pprzlink.ivy.IvyMessagesInterface(agent_name="ArucoMarker", start_ivy=False, ivy_bus="127.255.255.255:2010")
 
-# # --------- Start Ivy Interface --------- # 
-# ivy.start()
+# --------- Start Ivy Interface --------- # 
+ivy.start()
 
-# # --------- Subscribe to Ivy Messages --------- # 
-# ivy.subscribe(attitude_callback, message.PprzMessage("telemetry", "NPS_RATE_ATTITUDE"))
+# --------- Subscribe to Ivy Messages --------- # 
+ivy.subscribe(attitude_callback, message.PprzMessage("telemetry", "NPS_RATE_ATTITUDE"))
 
                                               # VIDEO #
 # ------------------------------------------------------------------------------------------------------- #
 # --------- Load Video --------- #
 path = '/home/kevin/IMAV2023/Live_Videos/VALKENBURG_20_07_23_TEST7_SHORTENED.mp4'               # Define video path	
-# path = '/home/kevin/IMAV2023/Aruco_Marker_Data/06_07_2023/Videos/2023_0706_001.MP4' # Define video path	
 
 cap = cv2.VideoCapture(path)                                                          # Create a VideoCapture object r
 FPS = cap.get(cv2.CAP_PROP_FPS)                                                       # Read FPS from input video
@@ -235,7 +234,7 @@ frame_height = int(cap.get(4))
 
 # --------- Write Video Setup --------- #
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')                                                     # Define video codec (FOURCC code)
-out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/Results/VALKENBURG_20_07_23_RESULT8.mp4', 
+out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/Results/VALKENBURG_20_07_23_RESULT10.mp4', 
                       fourcc, FPS, (frame_width, frame_height))                                      # Create VideoWriter object 
 
                                     # ARUCO MARKER DETECTION SETUP #
@@ -271,33 +270,34 @@ arucoDetector = cv2.aruco.ArucoDetector(arucoDictionary, arucoParameters)
 
 # --------- Timer Start --------- # 
 start_time = time.time()
-y = 0
+
                                             # RUN MAIN LOOP #
 # ------------------------------------------------------------------------------------------------------- #
 while(cap.isOpened()):
-  y = y + 0.2
   # --------- Measure and Save Current Time --------- # 
   live_time = time.time()
   current_time = live_time - start_time
   time_m.append(current_time)
 
   # # --------- Get Attitude Values from Ivybus --------- # 
-  # pitch, roll, yaw = get_attitude_values()
-  pitch = math.radians(30)
-  roll  = math.radians(0)
-  yaw   = math.radians(y)
+  pitch, roll, yaw = get_attitude_values()
 
   # --------- Read Frame-by-Frame --------- # 
   ret, frame = cap.read()
 
-  if ret == True:                                                            # If frame read correctly          
+  if ret == True: # If frame read correctly          
     # --------- Convert to Grayscale --------- # 
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
+    # --------- Apply Perspective Transform -> WORK IN PROGRESS --------- # 
     if pitch is not None:
       pitch = float(pitch)
       roll  = float(roll)
       yaw   = float(yaw)
+
+      pitch = math.radians(pitch)
+      roll  = math.radians(roll)
+      yaw   = math.radians(yaw)
       
       # Rotation matrices around the X (roll), Y (pitch), and Z (yaw) axis
       RX = np.array([[1, 0, 0], [0, math.cos(roll), -math.sin(roll)], [0, math.sin(roll), math.cos(roll)]])
@@ -306,6 +306,7 @@ while(cap.isOpened()):
       
       R = RZ * RY * RX
 
+      # Transformation matrix
       dx = 0
       dy = 0
       dz = 1
@@ -353,6 +354,7 @@ while(cap.isOpened()):
 
       # frame_temp = np.array(frame)
       # frame = perspective_warp(frame_temp, W)
+
       frame = cv2.warpPerspective(frame, W, (frame_width, frame_height), cv2.INTER_LANCZOS4);
 
     # --------- Aruco Marker Detection --------- # 
@@ -369,10 +371,10 @@ while(cap.isOpened()):
 
       frame = visualiseDroneAttitude(frame, frame_width, frame_height, pitch, roll, yaw)
 
-    if len(markerCorners) > 0:                                               # At least one marker detected       
+    if len(markerCorners) > 0: # At least one marker detected       
       # --------- Aruco Marker Pose Estimation --------- # 
       rvec, tvec, _ = cv2.aruco.estimatePoseSingleMarkers(markerCorners, MARKER_SIZE, camera_Matrix, distortion_Coeff)
-      (rvec - tvec).any()                                                    # Remove Numpy value array error
+      (rvec - tvec).any()    # Remove Numpy value array error
 
       # --------- Save and Print X, Y, and Z --------- # 
       X = tvec[0][0][0]
@@ -392,7 +394,7 @@ while(cap.isOpened()):
       frame = visualiseMarkerPosition(X, Y, Z, frame, frame_width, frame_height, rvec, tvec, camera_Matrix, distortion_Coeff)
 
     # --------- Write Video --------- # 
-    # out.write(frame)
+    out.write(frame)
     
     # --------- Display Output Frame --------- # 
     cv2.imshow('Frame', frame)
@@ -439,7 +441,7 @@ while(cap.isOpened()):
 # --------- Release/Stop Objects --------- # 
 cap.release()
 out.release()
-# ivy.shutdown()
+ivy.shutdown()
 
 # --------- Close Frames --------- # 
 cv2.destroyAllWindows()
