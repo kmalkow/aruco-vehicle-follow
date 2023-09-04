@@ -41,6 +41,24 @@ import pprzlink.ivy
 import pprzlink.messages_xml_map as messages_xml_map
 import pprzlink.message as message          
 
+                                        # STREAM WORKING CHECK #
+# # ------------------------------------------------------------------------------------------------------- #
+# # cap = cv2.VideoCapture(2)
+# cap = cv2.VideoCapture("rtsp://192.168.43.1:8554/fpv_stream")
+
+# while(True):
+#     # Capture frame-by-frame
+#     ret, frame = cap.read()
+# 
+#     # Display the resulting frame
+#     cv2.imshow('frame', frame)
+#     if cv2.waitKey(1) & 0xFF == ord('q'):
+#         break
+# 
+# # When everything done, release the capture
+# cap.release()
+# cv2.destroyAllWindows()
+
                                       # LOAD CAMERA PARAMETERS #
 # ------------------------------------------------------------------------------------------------------- #
 pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w1920_h1080_HERELINKV2.xml'
