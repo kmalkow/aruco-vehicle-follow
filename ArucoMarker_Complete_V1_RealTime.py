@@ -143,7 +143,7 @@ def visualizeLegend(frame_legend, width, height):
 
                                 # FUNCTION -> VISUALISE DRONE ATTITUDE #
 # ------------------------------------------------------------------------------------------------------- #
-def visualiseDroneAttitude(frame_attitude, width, height, pitch_visual, roll_visual, yaw_visual):
+def visualiseDroneAttitude(frame_attitude, width, height, pitch_visual, roll_visual, yaw_visual):  
   font = cv2.FONT_HERSHEY_PLAIN
   fontScale = 1.25
   color = (255, 255, 255)
@@ -245,11 +245,9 @@ ivy.subscribe(attitude_callback, message.PprzMessage("telemetry", "NPS_RATE_ATTI
 
                                               # VIDEO #
 # ------------------------------------------------------------------------------------------------------- #
-# --------- Load Video --------- #
-path = '/home/kevin/IMAV2023/Live_Videos/VALKENBURG_20_07_23_TEST7_SHORTENED.mp4'     # Define video path	
-
-cap = cv2.VideoCapture(path)                                                          # Create a VideoCapture object r
-FPS = cap.get(cv2.CAP_PROP_FPS)                                                       # Read FPS from input video
+# --------- Load Real-time Video --------- #
+cap = cv2.VideoCapture("rtsp://192.168.43.1:8554/fpv_stream")                        # Create a VideoCapture object (input is either an rtsp stream from the herelink module or input 2 for usb streaming)
+FPS = cap.get(cv2.CAP_PROP_FPS)                                                      # Read FPS from input video
 
 # --------- Functioning? --------- #
 if (cap.isOpened()== False):                                                          # Check if camera opened successfully
