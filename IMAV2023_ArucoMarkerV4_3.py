@@ -113,9 +113,9 @@ def visualizeLegend(frame_legend, width, height):
                                 # FUNCTION -> VISUALISE DRONE ATTITUDE #
 # ------------------------------------------------------------------------------------------------------- #
 def visualiseDroneAttitude(frame_attitude, width, height, pitch_visual, roll_visual, yaw_visual):
-  # pitch_visual = math.degrees(pitch_visual)
-  # roll_visual  = math.degrees(roll_visual)
-  # yaw_visual   = math.degrees(yaw_visual)
+  pitch_visual = math.degrees(pitch_visual)
+  roll_visual  = math.degrees(roll_visual)
+  yaw_visual   = math.degrees(yaw_visual)
   
   font = cv2.FONT_HERSHEY_PLAIN
   fontScale = 1.25
