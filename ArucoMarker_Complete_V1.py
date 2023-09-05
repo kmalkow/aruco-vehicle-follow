@@ -365,8 +365,13 @@ while(cap.isOpened()):
         roll  = math.radians(roll)
         yaw   = math.radians(yaw)
 
-        # --------- Set Aruco Position in Image Coordinates as Vector --------- # 
-        aruco_position = np.array([[X], [Y], [Z]])
+        # --------- Convert Aruco marker Position in Image Coordinates to Body Coordinates --------- #
+        # X (body) = Y (image plane), Y(body) = -X (image plane)
+        X_B = Y
+        Y_B = -X
+        Z_B = Z
+
+        aruco_position = np.array([[X_B], [Y_B], [Z_B]])
 
         # --------- Convert Aruco Position in Image Coordinates to NED Coordinates Relative to Drone --------- # 
         NORTH, EAST, DOWN = ned_conversion(pitch, roll, yaw, aruco_position)
