@@ -249,7 +249,7 @@ frame_height = int(cap.get(4))
 
 # --------- Write Video Setup --------- #
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')                                                     # Define video codec (FOURCC code)
-out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/Results/VALKENBURG_20_07_23_RESULT11.mp4', 
+out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/VALKENBURG_05_09_23_TEST1_V5_3.mp4', 
                       fourcc, FPS, (frame_width, frame_height))                                      # Create VideoWriter object 
 
                                     # ARUCO MARKER DETECTION SETUP #
