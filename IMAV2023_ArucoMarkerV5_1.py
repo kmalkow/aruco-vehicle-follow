@@ -270,15 +270,15 @@ while(cap.isOpened()):
                                             # SAVE MEASURED VARIABLES #
 # ------------------------------------------------------------------------------------------------------- #
 # --------- Outdoor Tests --------- # 
-# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/PRE_VALKENBURG_20_07_23_TEST_X', 'w') as csvfile:
+# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_05_09_23_TEST1_X', 'w') as csvfile:
 #     writer=csv.writer(csvfile, delimiter=',')
 #     writer.writerows(zip(X_m, time_m))
 
-# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/PRE_VALKENBURG_20_07_23_TEST_Y', 'w') as csvfile:
+# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_05_09_23_TEST1_Y', 'w') as csvfile:
 #     writer=csv.writer(csvfile, delimiter=',')
 #     writer.writerows(zip(Y_m, time_m))
 
-# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/PRE_VALKENBURG_20_07_23_TEST_Z', 'w') as csvfile:
+# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_05_09_23_TEST1_Z', 'w') as csvfile:
 #     writer=csv.writer(csvfile, delimiter=',')
 #     writer.writerows(zip(Z_m, time_m))
 
@@ -291,7 +291,7 @@ while(cap.isOpened()):
 #     writer=csv.writer(csvfile, delimiter=',')
 #     writer.writerows(zip(Y_m, time_m))
 
-# with open('/home/kevin/IMAV2023/Measured_Variables/Indoor_Tests/TEST1_ZChanges', 'w') as csvfile:
+# with open('/home/kevin/IMAV2023/Measured_Variables/Indoor_Tests/TEST1_Z', 'w') as csvfile:
 #     writer=csv.writer(csvfile, delimiter=',')
 #     writer.writerows(zip(Z_m, time_m))
 
