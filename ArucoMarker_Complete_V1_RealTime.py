@@ -72,6 +72,9 @@ Z_m = []                    # Variable to save measured Z value
 NORTH_m = []                # Variable to save measured NORTH value
 EAST_m  = []                # Variable to save measured EAST value
 DOWN_m  = []                # Variable to save measured DOWN value
+pitch_m = []                # Variable to save measured pitch value
+roll_m  = []                # Variable to save measured roll value
+yaw_m   = []                # Variable to save measured yaw value
 time_m = []                 # Variable to save measured time
 
                                   # FUNCTIONS -> IVYBUS MESSAGES #
@@ -340,6 +343,10 @@ while(cap.isOpened()):
       roll  = float(roll)
       yaw   = float(yaw)
 
+      pitch_m.append(pitch) # Save measured pitch
+      roll_m.append(pitch)  # Save measured pitch
+      yaw_m.append(pitch)   # Save measured pitch
+
       frame = visualiseDroneAttitude(frame, frame_width, frame_height, pitch, roll, yaw)
 
     if len(markerCorners) > 0: # At least one marker detected
@@ -436,6 +443,18 @@ while(cap.isOpened()):
 #     writer=csv.writer(csvfile, delimiter=',')
 #     writer.writerows(zip(DOWN_m, time_m))
 
+# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_05_09_23_TEST1_Pitch', 'w') as csvfile:
+#     writer=csv.writer(csvfile, delimiter=',')
+#     writer.writerows(zip(pitch_m, time_m))
+
+# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_05_09_23_TEST1_Roll', 'w') as csvfile:
+#     writer=csv.writer(csvfile, delimiter=',')
+#     writer.writerows(zip(roll_m, time_m))
+
+# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_05_09_23_TEST1_Yaw', 'w') as csvfile:
+#     writer=csv.writer(csvfile, delimiter=',')
+#     writer.writerows(zip(yaw_m, time_m))
+
 # --------- Indoor Tests --------- # 
 # with open('/home/kevin/IMAV2023/Measured_Variables/Indoor_Tests/TEST1_X', 'w') as csvfile:
 #     writer=csv.writer(csvfile, delimiter=',')
@@ -460,6 +479,18 @@ while(cap.isOpened()):
 # with open('/home/kevin/IMAV2023/Measured_Variables/Indoor_Tests/TEST1_DOWN', 'w') as csvfile:
 #     writer=csv.writer(csvfile, delimiter=',')
 #     writer.writerows(zip(DOWN_m, time_m))
+
+# with open('/home/kevin/IMAV2023/Measured_Variables/Indoor_Tests/TEST1_Pitch', 'w') as csvfile:
+#     writer=csv.writer(csvfile, delimiter=',')
+#     writer.writerows(zip(pitch_m, time_m))
+
+# with open('/home/kevin/IMAV2023/Measured_Variables/Indoor_Tests/TEST1_Roll', 'w') as csvfile:
+#     writer=csv.writer(csvfile, delimiter=',')
+#     writer.writerows(zip(roll_m, time_m))
+
+# with open('/home/kevin/IMAV2023/Measured_Variables/Indoor_Tests/TEST1_Yaw', 'w') as csvfile:
+#     writer=csv.writer(csvfile, delimiter=',')
+#     writer.writerows(zip(yaw_m, time_m))
 
                                             # CLOSE CODE PROPERLY #
 # ------------------------------------------------------------------------------------------------------- #
