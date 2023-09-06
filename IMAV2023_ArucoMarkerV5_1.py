@@ -270,17 +270,17 @@ while(cap.isOpened()):
                                             # SAVE MEASURED VARIABLES #
 # ------------------------------------------------------------------------------------------------------- #
 # --------- Outdoor Tests --------- # 
-# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_05_09_23_TEST1_X_V5_1', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(X_m, time_m))
+with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_05_09_23_TEST1_X_V5_1', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(X_m, time_m))
 
-# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_05_09_23_TEST1_Y_V5_1', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(Y_m, time_m))
+with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_05_09_23_TEST1_Y_V5_1', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(Y_m, time_m))
 
-# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_05_09_23_TEST1_Z_V5_1', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(Z_m, time_m))
+with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_05_09_23_TEST1_Z_V5_1', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(Z_m, time_m))
 
 # --------- Indoor Tests --------- # 
 # with open('/home/kevin/IMAV2023/Measured_Variables/Indoor_Tests/TEST1_X_V5_1', 'w') as csvfile:
