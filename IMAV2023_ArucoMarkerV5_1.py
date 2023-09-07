@@ -28,7 +28,8 @@ import numpy as np
                                         # STREAM WORKING CHECK #
 # # ------------------------------------------------------------------------------------------------------- #
 # # cap = cv2.VideoCapture(2)
-# cap = cv2.VideoCapture("rtsp://192.168.43.1:8554/fpv_stream")
+# # cap = cv2.VideoCapture("rtsp://192.168.43.1:8554/fpv_stream") # Create a VideoCapture object (input is either an rtsp stream from the herelink module or 42.129 for herelink bluetooth tethering or input 2 for usb streaming)
+# cap = cv2.VideoCapture("rtsp://192.168.42.129:8554/fpv_stream") # Create a VideoCapture object (input is either an rtsp stream from the herelink module or 42.129 for herelink bluetooth tethering or  input 2 for usb streaming)
 
 # while(True):
 #     # Capture frame-by-frame
@@ -45,7 +46,8 @@ import numpy as np
 
                                       # LOAD CAMERA PARAMETERS #
 # ------------------------------------------------------------------------------------------------------- #
-pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w1920_h1080_HERELINKV2.xml'
+# pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w1920_h1080_HERELINKV2.xml'
+pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w640_h480.xml'
 cv_file = cv2.FileStorage(pathLoad, cv2.FILE_STORAGE_READ)
 camera_Matrix = cv_file.getNode("cM").mat()
 distortion_Coeff = cv_file.getNode("dist").mat()
@@ -159,8 +161,9 @@ def visualiseMarkerPosition(X_visual, Y_visual, Z_visual, frame_pos, width, heig
                                               # VIDEO #
 # ------------------------------------------------------------------------------------------------------- #
 # --------- Load Video --------- #
-cap = cv2.VideoCapture("rtsp://192.168.43.1:8554/fpv_stream")                        # Create a VideoCapture object (input is either an rtsp stream from the herelink module or input 2 for usb streaming)
-FPS = cap.get(cv2.CAP_PROP_FPS)                                                      # Read FPS from input video
+# cap = cv2.VideoCapture("rtsp://192.168.43.1:8554/fpv_stream") # Create a VideoCapture object (input is either an rtsp stream from the herelink module or 42.129 for herelink bluetooth tethering or input 2 for usb streaming)
+cap = cv2.VideoCapture("rtsp://192.168.42.129:8554/fpv_stream") # Create a VideoCapture object (input is either an rtsp stream from the herelink module or 42.129 for herelink bluetooth tethering or  input 2 for usb streaming)
+FPS = cap.get(cv2.CAP_PROP_FPS)                                 # Read FPS from input video
 
 # --------- Functioning? --------- #
 if (cap.isOpened()== False):                                                         # Check if camera opened successfully
@@ -172,7 +175,7 @@ frame_height = int(cap.get(4))
 
 # --------- Write Video Setup --------- #
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')                                                     # Define video codec (FOURCC code)
-out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/VALKENBURG_05_09_23_TEST1_V5_1.mp4', 
+out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/VALKENBURG_07_09_23_TEST1_V5_1.mp4', 
                       fourcc, FPS, (frame_width, frame_height))                                      # Create VideoWriter object 
 
                                     # ARUCO MARKER DETECTION SETUP #
@@ -220,7 +223,15 @@ while(cap.isOpened()):
   # --------- Read Frame-by-Frame --------- # 
   ret, frame = cap.read()
 
-  if ret == True:                                                            # If frame read correctly          
+  if ret == True:  # If frame read correctly          
+    # --------- Resize Frame (Noise Reduction) --------- # 
+    scale_percent = 60                               # Percent of original size -> At 60%, dim = (1152, 648), min scale_percent = 50%
+    resized_frame_width = int(frame_width * scale_percent / 100)
+    resized_frame_height = int(frame_height * scale_percent / 100)
+    dim = (resized_frame_width, resized_frame_height)
+  
+    frame = cv2.resize(frame, dim)
+    
     # --------- Convert to Grayscale --------- # 
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
@@ -228,7 +239,7 @@ while(cap.isOpened()):
     (markerCorners, _, _) = arucoDetector.detectMarkers(gray_frame)
     
     # --------- Show Legend --------- # 
-    frame = visualizeLegend(frame, frame_width, frame_height)
+    frame = visualizeLegend(frame, resized_frame_width, resized_frame_height)
 
     if len(markerCorners) > 0:                                               # At least one marker detected       
       # --------- Aruco Marker Pose Estimation --------- # 
@@ -250,7 +261,7 @@ while(cap.isOpened()):
       print("-------------------------------") 
 
       # --------- Visualise Aruco Marker Position --------- # 
-      frame = visualiseMarkerPosition(X, Y, Z, frame, frame_width, frame_height, rvec, tvec, camera_Matrix, distortion_Coeff)
+      frame = visualiseMarkerPosition(X, Y, Z, frame, resized_frame_width, resized_frame_height, rvec, tvec, camera_Matrix, distortion_Coeff)
 
     # --------- Write Video --------- # 
     out.write(frame)
@@ -270,15 +281,15 @@ while(cap.isOpened()):
                                             # SAVE MEASURED VARIABLES #
 # ------------------------------------------------------------------------------------------------------- #
 # --------- Outdoor Tests --------- # 
-with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_05_09_23_TEST1_X_V5_1', 'w') as csvfile:
+with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_X_V5_1', 'w') as csvfile:
     writer=csv.writer(csvfile, delimiter=',')
     writer.writerows(zip(X_m, time_m))
 
-with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_05_09_23_TEST1_Y_V5_1', 'w') as csvfile:
+with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_Y_V5_1', 'w') as csvfile:
     writer=csv.writer(csvfile, delimiter=',')
     writer.writerows(zip(Y_m, time_m))
 
-with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_05_09_23_TEST1_Z_V5_1', 'w') as csvfile:
+with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_Z_V5_1', 'w') as csvfile:
     writer=csv.writer(csvfile, delimiter=',')
     writer.writerows(zip(Z_m, time_m))
 

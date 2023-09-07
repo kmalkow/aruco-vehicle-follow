@@ -43,7 +43,8 @@ import pprzlink.message as message
 
                                       # LOAD CAMERA PARAMETERS #
 # ------------------------------------------------------------------------------------------------------- #
-pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w1920_h1080_HERELINKV2.xml'
+# pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w1920_h1080_HERELINKV2.xml'
+pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w640_h480.xml'
 cv_file = cv2.FileStorage(pathLoad, cv2.FILE_STORAGE_READ)
 camera_Matrix = cv_file.getNode("cM").mat()
 distortion_Coeff = cv_file.getNode("dist").mat()
@@ -234,7 +235,7 @@ frame_height = int(cap.get(4))
 
 # --------- Write Video Setup --------- #
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')                                                     # Define video codec (FOURCC code)
-out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/Results/VALKENBURG_20_07_23_RESULT10.mp4', 
+out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/Results/VALKENBURG_20_07_23_RESULT13.mp4', 
                       fourcc, FPS, (frame_width, frame_height))                                      # Create VideoWriter object 
 
                                     # ARUCO MARKER DETECTION SETUP #
@@ -286,6 +287,14 @@ while(cap.isOpened()):
   ret, frame = cap.read()
 
   if ret == True: # If frame read correctly          
+    # --------- Resize Frame (Noise Reduction) --------- # 
+    scale_percent = 60                               # Percent of original size -> At 60%, dim = (1152, 648), min scale_percent = 50%
+    resized_frame_width = int(frame_width * scale_percent / 100)
+    resized_frame_height = int(frame_height * scale_percent / 100)
+    dim = (resized_frame_width, resized_frame_height)
+  
+    frame = cv2.resize(frame, dim)
+    
     # --------- Convert to Grayscale --------- # 
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
@@ -361,7 +370,7 @@ while(cap.isOpened()):
     (markerCorners, _, _) = arucoDetector.detectMarkers(gray_frame)
     
     # --------- Show Legend --------- # 
-    frame = visualizeLegend(frame, frame_width, frame_height)
+    frame = visualizeLegend(frame, resized_frame_width, resized_frame_height)
 
     # --------- Show Drone Attitude --------- # 
     if pitch is not None:
@@ -369,7 +378,7 @@ while(cap.isOpened()):
       roll  = float(roll)
       yaw   = float(yaw)
 
-      frame = visualiseDroneAttitude(frame, frame_width, frame_height, pitch, roll, yaw)
+      frame = visualiseDroneAttitude(frame, resized_frame_width, resized_frame_height, pitch, roll, yaw)
 
     if len(markerCorners) > 0: # At least one marker detected       
       # --------- Aruco Marker Pose Estimation --------- # 
@@ -391,7 +400,7 @@ while(cap.isOpened()):
       print("-------------------------------") 
 
       # --------- Visualise Aruco Marker Position --------- # 
-      frame = visualiseMarkerPosition(X, Y, Z, frame, frame_width, frame_height, rvec, tvec, camera_Matrix, distortion_Coeff)
+      frame = visualiseMarkerPosition(X, Y, Z, frame, resized_frame_width, resized_frame_height, rvec, tvec, camera_Matrix, distortion_Coeff)
 
     # --------- Write Video --------- # 
     out.write(frame)
