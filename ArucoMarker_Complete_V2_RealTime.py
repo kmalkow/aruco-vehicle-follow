@@ -1,9 +1,9 @@
 # --------------------------------------------------------------------------
 # Author:           Kevin Malkow and Sergio Marin Petersen
-# Date:             05/09/23
+# Date:             07/09/23
 # Affiliation:      TU Delft, IMAV 2023
 #
-# Version:          1.0 
+# Version:          2.0 
 # 
 # Description:  
 # - Detect Aruco markers and estimate Aruco marker position from real-time video stream
@@ -25,9 +25,6 @@ import numpy as np
 from typing import Tuple
 
 # --------- Ivybus Specific --------- # 
-# UNCOMMENT FOR ALESSANDROS LAPTOP:
-# sys.path.append("/home/ppz/paparazzi/sw/ext/pprzlink/lib/v2.0/python/")    
-
 sys.path.append("/home/kevin/paparazzi/sw/ext/pprzlink/lib/v2.0/python/")
 
 from ivy.std_api import *
@@ -38,8 +35,7 @@ import pprzlink.message as message
                                         # STREAM WORKING CHECK #
 # # ------------------------------------------------------------------------------------------------------- #
 # # cap = cv2.VideoCapture(2)
-# # cap = cv2.VideoCapture("rtsp://192.168.43.1:8554/fpv_stream") # Create a VideoCapture object (input is for herelink wifi connection)
-# cap = cv2.VideoCapture("rtsp://192.168.42.129:8554/fpv_stream") # Create a VideoCapture object (input is for herelink bluetooth tethering)
+# cap = cv2.VideoCapture("rtsp://192.168.43.1:8554/fpv_stream")
 
 # while(True):
 #     # Capture frame-by-frame
@@ -56,11 +52,7 @@ import pprzlink.message as message
 
                                       # LOAD CAMERA PARAMETERS #
 # ------------------------------------------------------------------------------------------------------- #
-# UNCOMMENT FOR ALESSANDROS LAPTOP:
-# pathLoad = './CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w640_h480.xml'
-
-# pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w1920_h1080_HERELINKV2.xml'
-pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w640_h480.xml'
+pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w1920_h1080_HERELINKV2.xml'
 cv_file = cv2.FileStorage(pathLoad, cv2.FILE_STORAGE_READ)
 camera_Matrix = cv_file.getNode("cM").mat()
 distortion_Coeff = cv_file.getNode("dist").mat()
@@ -286,12 +278,27 @@ ivy.subscribe(attitude_callback, message.PprzMessage("telemetry", "ROTORCRAFT_FP
 #     print(f"Roll [deg]: {roll}")
 #     print(f"Yaw [deg]: {yaw}")
 
+                                 # FUNCTION -> MOVE WAYPOINT and asks which AIRFRAME is being used #
+# ------------------------------------------------------------------------------------------------------- #
+def move_waypoint(ac_id, wp_id, NORTH, EAST, DOWN):
+    msg = message.PprzMessage("ground", "MOVE_WAYPOINT")
+    msg['ac_id'] = ac_id
+    msg['wp_id'] = wp_id
+    msg['x'] = NORTH
+    msg['y'] = EAST
+    msg['z'] = DOWN
+    print("Sending message: %s" % msg)
+    ivy.send(msg)
+    time.sleep(0.5)
+
+
+ac_id = input("What Aicraft ID is it being used: ")
+
                                               # VIDEO #
 # ------------------------------------------------------------------------------------------------------- #
 # --------- Load Video --------- #
-# cap = cv2.VideoCapture("rtsp://192.168.43.1:8554/fpv_stream") # Create a VideoCapture object (input is for herelink wifi connection)
-cap = cv2.VideoCapture("rtsp://192.168.42.129:8554/fpv_stream") # Create a VideoCapture object (input is for herelink bluetooth tethering)
-FPS = cap.get(cv2.CAP_PROP_FPS)                                 # Read FPS from input video
+cap = cv2.VideoCapture("rtsp://192.168.43.1:8554/fpv_stream")                        # Create a VideoCapture object (input is either an rtsp stream from the herelink module or input 2 for usb streaming)
+FPS = cap.get(cv2.CAP_PROP_FPS)                                                      # Read FPS from input video
 
 # --------- Functioning? --------- #
 if (cap.isOpened()== False):                                                          # Check if camera opened successfully
@@ -303,13 +310,8 @@ frame_height = int(cap.get(4))
 
 # --------- Write Video Setup --------- #
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')                                                     # Define video codec (FOURCC code)
-out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/VALKENBURG_07_09_23_TEST2_CompleteV1.mp4', 
+out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/VALKENBURG_05_09_23_TEST1_CompleteV1.mp4', 
                       fourcc, FPS, (frame_width, frame_height))                                      # Create VideoWriter object 
-
-# UNCOMMENT FOR ALESSANDROS LAPTOP:
-# out = cv2.VideoWriter('./Live_Videos/VALKENBURG_07_09_23_TEST2_CompleteV1.mp4', 
-#                       fourcc, FPS, (frame_width, frame_height))                                      # Create VideoWriter object 
-
 
                                     # ARUCO MARKER DETECTION SETUP #
 # ------------------------------------------------------------------------------------------------------- #
@@ -321,22 +323,23 @@ arucoDictionary = cv2.aruco.Dictionary(baseDictionary.bytesList[700], 5, 6)
 arucoParameters =  cv2.aruco.DetectorParameters()
 
 # STEP 1: Adaptive thresholding parameters
-arucoParameters.adaptiveThreshWinSizeMin  = 3
-arucoParameters.adaptiveThreshWinSizeMax  = 15
+arucoParameters.adaptiveThreshWinSizeMin = 3
+arucoParameters.adaptiveThreshWinSizeMax = 3
 arucoParameters.adaptiveThreshWinSizeStep = 3
-arucoParameters.adaptiveThreshConstant    = 11
+arucoParameters.adaptiveThreshConstant = 10
 
 # STEP 2: Contour filtering parameters
-arucoParameters.polygonalApproxAccuracyRate = 0.04
-arucoParameters.minDistanceToBorder         = 10
+arucoParameters.minMarkerPerimeterRate = 0.038 
+arucoParameters.maxMarkerPerimeterRate = 0.5
+arucoParameters.polygonalApproxAccuracyRate = 0.035
 
-# STEP 3: Bit extraction parameters (large influence on detection performance, default = 4)
-arucoParameters.perspectiveRemovePixelPerCell = 1
+# # STEP 3: Bit extraction parameters
+arucoParameters.perspectiveRemovePixelPerCell = 1 
 
-# STEP 4: Corner refinement -> Improves accuracy of Aruco marker pose estimation
-arucoParameters.cornerRefinementMethod        = cv2.aruco.CORNER_REFINE_SUBPIX
-arucoParameters.cornerRefinementWinSize       = 7
-arucoParameters.cornerRefinementMinAccuracy   = 0.1
+# STEP 4: Corner refinement -> PERFORMANCE INTENSIVE (remove if necessary)
+arucoParameters.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
+arucoParameters.cornerRefinementWinSize = 6
+arucoParameters.cornerRefinementMinAccuracy = 0.2
 
 # --------- Build Aruco Marker Detector --------- # 
 arucoDetector = cv2.aruco.ArucoDetector(arucoDictionary, arucoParameters)
@@ -362,14 +365,6 @@ while(cap.isOpened()):
   ret, frame = cap.read()
 
   if ret == True: # If frame read correctly          
-    # --------- Resize Frame (Noise Reduction) --------- # 
-    scale_percent = 60                               # Percent of original size -> At 60%, dim = (1152, 648), min scale_percent = 50%
-    resized_frame_width = int(frame_width * scale_percent / 100)
-    resized_frame_height = int(frame_height * scale_percent / 100)
-    dim = (resized_frame_width, resized_frame_height)
-  
-    frame = cv2.resize(frame, dim)
-    
     # --------- Convert to Grayscale --------- # 
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
@@ -377,7 +372,7 @@ while(cap.isOpened()):
     (markerCorners, _, _) = arucoDetector.detectMarkers(gray_frame)
     
     # --------- Show Legend --------- # 
-    frame = visualizeLegend(frame, resized_frame_width, resized_frame_height)
+    frame = visualizeLegend(frame, frame_width, frame_height)
 
     # --------- Show Drone Attitude --------- # 
     if pitch is not None:
@@ -393,7 +388,7 @@ while(cap.isOpened()):
       roll_m.append(pitch)  # Save measured roll
       yaw_m.append(pitch)   # Save measured yaw
 
-      frame = visualiseDroneAttitude(frame, resized_frame_width, resized_frame_height, pitch, roll, yaw)
+      frame = visualiseDroneAttitude(frame, frame_width, frame_height, pitch, roll, yaw)
 
     if len(markerCorners) > 0: # At least one marker detected
       # --------- Update Iteration Counter --------- # 
@@ -432,7 +427,7 @@ while(cap.isOpened()):
         yaw   = math.radians(yaw)
 
         # --------- Convert Aruco marker Position in Image Coordinates to Body Coordinates --------- #
-        # X (body) = Y (image plane), Y(body) = -X (image plane)
+        # X (body) = Y (image plane), Y(bodDy) = -X (image plane)
         X_B = Y
         Y_B = -X
         Z_B = Z
@@ -441,6 +436,11 @@ while(cap.isOpened()):
 
         # --------- Convert Aruco Position in Image Coordinates to NED Coordinates Relative to Drone --------- # 
         NORTH, EAST, DOWN = ned_conversion(pitch, roll, yaw, aruco_position)
+       
+       # --------- Move Waypoint to Aruco Marker NED Position --------- # 
+
+        wp_id = 11
+        move_waypoint(ac_id, wp_id, NORTH, EAST, DOWN)
 
         # --------- Save and Print NORTH, EAST, and DOWN --------- # 
         NORTH_m.append(NORTH)        # Save measured NORTH
@@ -454,7 +454,7 @@ while(cap.isOpened()):
         print("-------------------------------") 
 
       # --------- Visualise Aruco Marker Position --------- # 
-      frame = visualiseMarkerPosition(X, Y, Z, frame, resized_frame_width, resized_frame_height, rvec, tvec, camera_Matrix, distortion_Coeff)
+      frame = visualiseMarkerPosition(X, Y, Z, frame, frame_width, frame_height, rvec, tvec, camera_Matrix, distortion_Coeff)
 
     # --------- Write Video --------- # 
     out.write(frame)
@@ -474,78 +474,41 @@ while(cap.isOpened()):
                                             # SAVE MEASURED VARIABLES #
 # ------------------------------------------------------------------------------------------------------- #
 # --------- Outdoor Tests --------- # 
-with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_X_V1', 'w') as csvfile:
+with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_05_09_23_TEST1_X_V1', 'w') as csvfile:
     writer=csv.writer(csvfile, delimiter=',')
     writer.writerows(zip(X_m, time_m))
 
-with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_Y_V1', 'w') as csvfile:
+with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_05_09_23_TEST1_Y_V1', 'w') as csvfile:
     writer=csv.writer(csvfile, delimiter=',')
     writer.writerows(zip(Y_m, time_m))
 
-with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_Z_V1', 'w') as csvfile:
+with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_05_09_23_TEST1_Z_V1', 'w') as csvfile:
     writer=csv.writer(csvfile, delimiter=',')
     writer.writerows(zip(Z_m, time_m))
 
-with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_NORTH_V1', 'w') as csvfile:
+with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_05_09_23_TEST1_NORTH_V1', 'w') as csvfile:
     writer=csv.writer(csvfile, delimiter=',')
     writer.writerows(zip(NORTH_m, time_m))
 
-with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_EAST_V1', 'w') as csvfile:
+with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_05_09_23_TEST1_EAST_V1', 'w') as csvfile:
     writer=csv.writer(csvfile, delimiter=',')
     writer.writerows(zip(EAST_m, time_m))
 
-with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_DOWN_V1', 'w') as csvfile:
+with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_05_09_23_TEST1_DOWN_V1', 'w') as csvfile:
     writer=csv.writer(csvfile, delimiter=',')
     writer.writerows(zip(DOWN_m, time_m))
 
-with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_Pitch_V1', 'w') as csvfile:
+with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_05_09_23_TEST1_Pitch_V1', 'w') as csvfile:
     writer=csv.writer(csvfile, delimiter=',')
     writer.writerows(zip(pitch_m, time_m))
 
-with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_Roll_V1', 'w') as csvfile:
+with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_05_09_23_TEST1_Roll_V1', 'w') as csvfile:
     writer=csv.writer(csvfile, delimiter=',')
     writer.writerows(zip(roll_m, time_m))
 
-with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_Yaw_V1', 'w') as csvfile:
+with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_05_09_23_TEST1_Yaw_V1', 'w') as csvfile:
     writer=csv.writer(csvfile, delimiter=',')
     writer.writerows(zip(yaw_m, time_m))
-
-# UNCOMMENT FOR ALESSANDROS LAPTOP:
-# with open('./Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_X_V1', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(X_m, time_m))
-
-# with open('./Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_Y_V1', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(Y_m, time_m))
-
-# with open('./Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_Z_V1', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(Z_m, time_m))
-
-# with open('./Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_NORTH_V1', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(NORTH_m, time_m))
-
-# with open('./Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_EAST_V1', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(EAST_m, time_m))
-
-# with open('./Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_DOWN_V1', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(DOWN_m, time_m))
-
-# with open('./Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_Pitch_V1', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(pitch_m, time_m))
-
-# with open('./Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_Roll_V1', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(roll_m, time_m))
-
-# with open('./Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_Yaw_V1', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(yaw_m, time_m))
 
 # --------- Indoor Tests --------- # 
 # with open('/home/kevin/IMAV2023/Measured_Variables/Indoor_Tests/TEST1_X_V1', 'w') as csvfile:

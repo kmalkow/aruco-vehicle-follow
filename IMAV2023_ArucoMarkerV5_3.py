@@ -285,23 +285,22 @@ arucoDictionary = cv2.aruco.Dictionary(baseDictionary.bytesList[700], 5, 6)
 arucoParameters =  cv2.aruco.DetectorParameters()
 
 # STEP 1: Adaptive thresholding parameters
-arucoParameters.adaptiveThreshWinSizeMin = 3
-arucoParameters.adaptiveThreshWinSizeMax = 3
+arucoParameters.adaptiveThreshWinSizeMin  = 3
+arucoParameters.adaptiveThreshWinSizeMax  = 15
 arucoParameters.adaptiveThreshWinSizeStep = 3
-arucoParameters.adaptiveThreshConstant = 10
+arucoParameters.adaptiveThreshConstant    = 11
 
 # STEP 2: Contour filtering parameters
-arucoParameters.minMarkerPerimeterRate = 0.038 
-arucoParameters.maxMarkerPerimeterRate = 0.5
-arucoParameters.polygonalApproxAccuracyRate = 0.035
+arucoParameters.polygonalApproxAccuracyRate = 0.04
+arucoParameters.minDistanceToBorder         = 10
 
-# # STEP 3: Bit extraction parameters
-arucoParameters.perspectiveRemovePixelPerCell = 1 
+# STEP 3: Bit extraction parameters (large influence on detection performance, default = 4)
+arucoParameters.perspectiveRemovePixelPerCell = 1
 
-# STEP 4: Corner refinement -> PERFORMANCE INTENSIVE (remove if necessary)
-arucoParameters.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
-arucoParameters.cornerRefinementWinSize = 6
-arucoParameters.cornerRefinementMinAccuracy = 0.2
+# STEP 4: Corner refinement -> Improves accuracy of Aruco marker pose estimation
+arucoParameters.cornerRefinementMethod        = cv2.aruco.CORNER_REFINE_SUBPIX
+arucoParameters.cornerRefinementWinSize       = 7
+arucoParameters.cornerRefinementMinAccuracy   = 0.1
 
 # --------- Build Aruco Marker Detector --------- # 
 arucoDetector = cv2.aruco.ArucoDetector(arucoDictionary, arucoParameters)

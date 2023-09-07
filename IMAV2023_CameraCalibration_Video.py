@@ -52,7 +52,7 @@ heightCB = 6
 square_size = 0.0225 # [m]
 
 # FLAG: Minimum no. of data points reached
-MIN_POINTS = 900
+MIN_POINTS = 600
 
 #  ------------------------------------------------------------------------- #
 #                           CHESSBOARD CORNERS                               #
@@ -84,8 +84,8 @@ if (cap.isOpened()== False):
   print("Error: cannot open video file or stream")
  
 # Default resolutions of the frame are obtained and converted from float to integer
-frame_width = int(cap.get(3))
-frame_height = int(cap.get(4))
+frame_width = int(cap.get(3)*0.6)
+frame_height = int(cap.get(4)*0.6)
 
 print(frame_width)
 print(frame_height)
@@ -94,7 +94,7 @@ print(frame_height)
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')
 
 # Create VideoWriter object 
-out = cv2.VideoWriter('/home/kevin/IMAV2023/Camera_Calibration/Results/Videos/ChessBoard_Detected_V8.mp4', fourcc, FPS, (frame_width, frame_height))
+out = cv2.VideoWriter('/home/kevin/IMAV2023/Camera_Calibration/Results/Videos/ChessBoard_Detected_V9.mp4', fourcc, FPS, (frame_width, frame_height))
 
 # Read until video is completed
 while(cap.isOpened()):
@@ -102,7 +102,15 @@ while(cap.isOpened()):
   ret, frame = cap.read()
 
   # If frame found 
-  if ret == True:  
+  if ret == True:
+    # --------- Resize Frame (Noise Reduction) --------- # 
+    scale_percent = 60                               # Percent of original size -> At 60%, dim = (1152, 648), min scale_percent = 50%
+    resized_frame_width = int(frame_width * scale_percent / 100)
+    resized_frame_height = int(frame_height * scale_percent / 100)
+    dim = (resized_frame_width, resized_frame_height)
+  
+    frame = cv2.resize(frame, dim)  
+
     # Convert to grayscale
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
@@ -157,7 +165,7 @@ print(f"Dist Coeff: {dist}")
 #  ------------------------------------------------------------------------- #
 #                             SAVE VARIABLES                                 #
 #  ------------------------------------------------------------------------- #
-pathStore = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/cameraCalibration_Video_w1920_h1080_HERELINKV3.xml'   
+pathStore = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_60_Percent_HERELINK.xml'   
 cv_file = cv2.FileStorage(pathStore, cv2.FILE_STORAGE_WRITE)
 cv_file.write("cM", mtx)
 cv_file.write("dist", dist)
