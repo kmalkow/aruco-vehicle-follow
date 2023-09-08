@@ -104,8 +104,10 @@ DOWN_m  = []                          # Variable to save measured Aruco marker D
 NORTH_d_m = []                        # Variable to save measured drone NORTH value
 EAST_d_m  = []                        # Variable to save measured drone EAST value
 DOWN_d_m  = []                        # Variable to save measured drone DOWN value
-lat_d_m = []                          # Variable to save measured drone lat value
+lat_d_m   = []                        # Variable to save measured drone lat value
 long_d_m  = []                        # Variable to save measured drone long value
+lat_m   = []                          # Variable to save measured Aruco lat value
+long_m  = []                          # Variable to save measured Aruco long value
 pitch_m = []                          # Variable to save measured pitch value
 roll_m  = []                          # Variable to save measured roll value
 yaw_m   = []                          # Variable to save measured yaw value
@@ -557,11 +559,8 @@ while(cap.isOpened()):
         # --------- Print Drone NORTH, EAST, and DOWN --------- # 
         if NORTH_d is not None:
           print(f"Drone NORTH: {NORTH_d}")
-
           print(f"Drone EAST: {EAST_d}")
-
           print(f"Drone DOWN: {DOWN_d}")
-          print("-------------------------------") 
 
         # --------- Move Waypoint to Aruco Marker Position --------- # 
         if lat_d is not None:
@@ -569,8 +568,17 @@ while(cap.isOpened()):
           lat  = NORTH*lat_conversion
           long = EAST*long_conversion
 
-          lat_d_m.append(lat_d)     # Save measured drone lat
-          long_d_m.append(long_d)   # Save measured drone long
+          lat_m.append(lat)     # Save measured Aruco lat
+          long_m.append(long)   # Save measured Aruco long
+        
+          # --------- Print Aruco lat, long --------- # 
+          print(f"Aruco LATITUDE: {lat}")
+          print(f"Aruco LONGITUDE: {long}")
+
+          # --------- Print Drone lat, long --------- # 
+          print(f"Drone LATITUDE: {lat_d}")
+          print(f"Drone LONGITUDE: {long_d}")         
+          print("-------------------------------") 
 
           # --------- Sum Aruco LATITUDE and LONGITUDE to Drone LATITUDE and LONGITUDE --------- # 
           lat_sum  = lat_d + lat
