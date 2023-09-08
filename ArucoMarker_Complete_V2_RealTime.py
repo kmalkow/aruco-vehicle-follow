@@ -24,6 +24,7 @@ import cv2.aruco
 import threading
 import numpy as np
 from typing import Tuple
+import pymap3d
 
 # --------- Ivybus Specific --------- # 
 # UNCOMMENT FOR ALESSANDROS LAPTOP:
@@ -74,6 +75,10 @@ MARKER_SIZE = 1.107                   # Size of Aruco marker in [m] -> 1.107 [m]
 pitch_values = None                   # Global variable to store Ivybus received pitch values
 roll_values = None                    # Global variable to store Ivybus received roll values
 yaw_values = None                     # Global variable to store Ivybus received yaw values
+lat_values = None
+long_values = None
+alt_values = None
+
 pprz_attitude_conversion = 0.0139882  # Unit conversion from pprz message to degrees
 
 X_m = []                              # Variable to save measured X value
@@ -89,7 +94,7 @@ time_m = []                           # Variable to save measured time
 
                                   # FUNCTIONS -> IVYBUS MESSAGES #
 # ------------------------------------------------------------------------------------------------------- #
-# --------- Bind to Drone Attitude Message --------- # 
+# --------- Bind to Drone Attitude and Location Message --------- # 
 def attitude_callback(ac_id, pprzMsg):
     global pitch_values
     global roll_values
@@ -102,12 +107,31 @@ def attitude_callback(ac_id, pprzMsg):
     roll_values  = roll
     yaw_values   = yaw
 
-# --------- Get Attitude Values --------- # 
+def geodetic_callback(ac_id, pprzMsg):
+    global lat_values
+    global long_values
+    global alt_values
+    
+    lat = pprzMsg['theta']
+    long = pprzMsg['phi']
+    alt = pprzMsg['psi']
+    lat_values = lat
+    long_values  = long
+    alt_values   = alt
+
+
+# --------- Get Attitude and Location Values --------- # 
 def get_attitude_values():
     global pitch_values
     global roll_values
     global yaw_values
     return pitch_values, roll_values, yaw_values
+
+def get_geodetic_values():
+    global lat_values
+    global long_values
+    global alt_values
+    return lat_values, long_values, alt_values
 
                                   # FUNCTIONS -> NED COORDINATES CONVERSION #
 # ------------------------------------------------------------------------------------------------------- #
@@ -266,6 +290,8 @@ ivy.start()
 
 # --------- Subscribe to Ivy Messages --------- # 
 ivy.subscribe(attitude_callback, message.PprzMessage("telemetry", "ROTORCRAFT_FP"))
+ivy.subscribe(geodetic_callback, message.PprzMessage("telemetry", "ROTORCRAFT_FP"))
+
 
                                         # Ivybus MESSAGES CHECK #
 # ------------------------------------------------------------------------------------------------------- #
@@ -457,6 +483,7 @@ while(cap.isOpened()):
 
         # --------- Convert Aruco Position in Image Coordinates to NED Coordinates Relative to Drone --------- # 
         NORTH, EAST, DOWN = ned_conversion(pitch, roll, yaw, aruco_position)
+        lat, long, alt = pymap3d.ned2geodetic(NORTH, EAST, DOWN, )
 
         # --------- Move Waypoint to Aruco Marker NED Position --------- # 
         wp_id = 11
