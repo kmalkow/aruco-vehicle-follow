@@ -77,14 +77,23 @@ pitch_values = None                   # Global variable to store Ivybus received
 roll_values = None                    # Global variable to store Ivybus received roll values
 yaw_values = None                     # Global variable to store Ivybus received yaw values
 pprz_attitude_conversion = 0.0139882  # Unit conversion from pprz message to degrees
+
 NORTH_values = None                   # Global variable to store Ivybus received NORTH values
 EAST_values = None                    # Global variable to store Ivybus received EAST values
 DOWN_values = None                    # Global variable to store Ivybus received DOWN values
 pprz_NED_conversion = 0.0039063       # Unit conversion from pprz message to meters
 
-scaling_factor_X = -0.2976 # Scaling factor to account for reduced frame size in Aruco marker X measurements
-scaling_factor_Y = -0.2468 # Scaling factor to account for reduced frame size in Aruco marker Y measurements
-scaling_factor_Z = -0.092  # Scaling factor to account for reduced frame size in Aruco marker Z measurements
+lat_values = None                     # Global variable to store Ivybus received NORTH values
+long_values = None                    # Global variable to store Ivybus received EAST values
+lat_conversion  = 111320              # Convert from NORTH to latitude
+long_conversion = 55660               # Convert from EAST to longitude
+pprz_lat_long_conversion = 0.0000001  # Unit conversion from pprz message to lat, long
+
+wp_id = 11                            # Waypoint id for the move_waypoint function
+
+scaling_factor_X = -0.2976            # Scaling factor to account for reduced frame size in Aruco marker X measurements
+scaling_factor_Y = -0.2468            # Scaling factor to account for reduced frame size in Aruco marker Y measurements
+scaling_factor_Z = -0.092             # Scaling factor to account for reduced frame size in Aruco marker Z measurements
 
 X_m = []                              # Variable to save measured X value
 Y_m = []                              # Variable to save measured Y value
@@ -95,6 +104,8 @@ DOWN_m  = []                          # Variable to save measured Aruco marker D
 NORTH_d_m = []                        # Variable to save measured drone NORTH value
 EAST_d_m  = []                        # Variable to save measured drone EAST value
 DOWN_d_m  = []                        # Variable to save measured drone DOWN value
+lat_d_m = []                          # Variable to save measured drone lat value
+long_d_m  = []                        # Variable to save measured drone long value
 pitch_m = []                          # Variable to save measured pitch value
 roll_m  = []                          # Variable to save measured roll value
 yaw_m   = []                          # Variable to save measured yaw value
@@ -128,19 +139,35 @@ def NED_callback(ac_id, pprzMsg):
     EAST_values  = EAST_drone
     DOWN_values  = DOWN_drone
 
-# --------- Get Attitude Values --------- # 
+# --------- Bind to Drone Latitude and Longitude Message --------- # 
+def lat_long_callback(ac_id, pprzMsg):
+    global lat_values
+    global long_values
+    
+    lat_drone    = pprzMsg['lat']
+    long_drone   = pprzMsg['lon']
+    lat_values   = lat_drone
+    long_values  = long_drone
+
+# --------- Get Drone Attitude Values --------- # 
 def get_attitude_values():
     global pitch_values
     global roll_values
     global yaw_values
     return pitch_values, roll_values, yaw_values
 
-# --------- Get NED Position Values --------- # 
+# --------- Get Drone NED Position Values --------- # 
 def get_NED_values():
     global NORTH_values
     global EAST_values
     global DOWN_values
     return NORTH_values, EAST_values, DOWN_values
+
+# --------- Get Drone lat, long Values --------- # 
+def get_lat_long_values():
+    global lat_values
+    global long_values
+    return lat_values, long_values
 
                                   # FUNCTIONS -> NED COORDINATES CONVERSION #
 # ------------------------------------------------------------------------------------------------------- #
@@ -300,6 +327,22 @@ ivy.start()
 # --------- Subscribe to Ivy Messages --------- # 
 ivy.subscribe(attitude_callback, message.PprzMessage("telemetry", "ROTORCRAFT_FP"))
 ivy.subscribe(NED_callback, message.PprzMessage("telemetry", "ROTORCRAFT_FP"))
+ivy.subscribe(lat_long_callback, message.PprzMessage("telemetry", "GPS_INT"))
+
+
+                                 # FUNCTION -> VISUALISE MARKER POSITION #
+# ------------------------------------------------------------------------------------------------------- #
+def move_waypoint(ac_id, wp_id, lat, long):
+    msg = message.PprzMessage("ground", "MOVE_WAYPOINT")
+    msg['ac_id'] = ac_id
+    msg['wp_id'] = wp_id
+    msg['lat'] = lat
+    msg['long'] = long
+    msg['alt'] = alt
+    ivy.send(msg)
+
+ac_id = input("What Aicraft ID is it being used: ")
+
 
                                         # Ivybus MESSAGES CHECK #
 # ------------------------------------------------------------------------------------------------------- #
@@ -422,6 +465,18 @@ while(cap.isOpened()):
   EAST_d_m.append(EAST_d)   # Save measured drone EAST
   DOWN_d_m.append(DOWN_d)   # Save measured drone DOWN
 
+  # --------- Get lat, long Values from Ivybus --------- # 
+  lat_d, long_d = get_lat_long_values()
+
+  lat_d = float(lat_d)
+  long_d  = float(long_d)
+  
+  lat_d = lat_d*pprz_lat_long_conversion
+  long_d  = long_d*pprz_lat_long_conversion
+
+  lat_d_m.append(lat_d)     # Save measured drone lat
+  long_d_m.append(long_d)   # Save measured drone long
+
   # --------- Read Frame-by-Frame --------- # 
   ret, frame = cap.read()
 
@@ -472,8 +527,8 @@ while(cap.isOpened()):
       Z_m.append(Z)          # Save measured Z
       print(f"Aruco ALTITUDE: {Z}")
 
-      # --------- NED Conversion and Moving to Relative Position --------- # 
       if pitch is not None:  
+        # --------- NED Conversion and Moving to Relative Position --------- # 
         pitch = math.radians(pitch)
         roll  = math.radians(roll)
         yaw   = math.radians(yaw)
@@ -499,14 +554,34 @@ while(cap.isOpened()):
         DOWN_m.append(DOWN)          # Save measured Aruco Marker DOWN
         print(f"Aruco DOWN: {DOWN}")
 
-      # --------- Print Drone NORTH, EAST, and DOWN --------- # 
-      if NORTH_d is not None:
-        print(f"Drone NORTH: {NORTH_d}")
+        # --------- Print Drone NORTH, EAST, and DOWN --------- # 
+        if NORTH_d is not None:
+          print(f"Drone NORTH: {NORTH_d}")
 
-        print(f"Drone EAST: {EAST_d}")
+          print(f"Drone EAST: {EAST_d}")
 
-        print(f"Drone DOWN: {DOWN_d}")
-        print("-------------------------------") 
+          print(f"Drone DOWN: {DOWN_d}")
+          print("-------------------------------") 
+
+        # --------- Move Waypoint to Aruco Marker Position --------- # 
+        if lat_d is not None:
+          # --------- Convert Aruco NORTH and EAST To Aruco LATITUDE and LONGITUDE --------- # 
+          lat  = NORTH*lat_conversion
+          long = EAST*long_conversion
+
+          lat_d_m.append(lat_d)     # Save measured drone lat
+          long_d_m.append(long_d)   # Save measured drone long
+
+          # --------- Sum Aruco LATITUDE and LONGITUDE to Drone LATITUDE and LONGITUDE --------- # 
+          lat_sum  = lat_d + lat
+          long_sum = long_d + long
+
+          # --------- Rescale Back For Messaging 
+          lat_sum = int(lat_sum/pprz_lat_long_conversion)
+          long_sum = int(long_sum/pprz_lat_long_conversion)
+
+          # --------- Move Waypoint --------- # 
+          move_waypoint(ac_id, wp_id, lat_sum, long_sum)       
 
       # --------- Visualise Aruco Marker Position --------- # 
       frame = visualiseMarkerPosition(X, Y, Z, frame, resized_frame_width, resized_frame_height, rvec, tvec, camera_Matrix, distortion_Coeff)
