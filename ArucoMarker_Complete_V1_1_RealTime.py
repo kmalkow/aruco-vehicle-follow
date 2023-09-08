@@ -337,11 +337,11 @@ frame_height = int(cap.get(4))
 
 # --------- Write Video Setup --------- #
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')                                                     # Define video codec (FOURCC code)
-out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/VALKENBURG_07_09_23_TEST2_CompleteV1.mp4', 
+out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/VALKENBURG_08_09_23_TEST2_CompleteV1_1.mp4', 
                       fourcc, FPS, (frame_width, frame_height))                                      # Create VideoWriter object 
 
 # UNCOMMENT FOR ALESSANDROS LAPTOP:
-# out = cv2.VideoWriter('./Live_Videos/VALKENBURG_07_09_23_TEST2_CompleteV1.mp4', 
+# out = cv2.VideoWriter('./Live_Videos/VALKENBURG_08_09_23_TEST2_CompleteV1_1.mp4', 
 #                       fourcc, FPS, (frame_width, frame_height))                                      # Create VideoWriter object 
 
 

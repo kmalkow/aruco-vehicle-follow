@@ -1,14 +1,16 @@
 # --------------------------------------------------------------------------
 # Author:           Kevin Malkow and Sergio Marin Petersen
-# Date:             07/09/23
+# Date:             08/09/23
 # Affiliation:      TU Delft, IMAV 2023
 #
 # Version:          2.0 
 # 
 # Description:  
 # - Detect Aruco markers and estimate Aruco marker position from real-time video stream
+# - Get attitude and NED position from drone through Ivybus
 # - Convert Aruco marker position in image plane coordinates to NED coordinates for navigation algorithm
-# - Move waypoint 
+#   using drone attitude
+# - 
 #
 #  -------------------------------------------------------------------------
 
@@ -24,7 +26,6 @@ import cv2.aruco
 import threading
 import numpy as np
 from typing import Tuple
-import pymap3d
 
 # --------- Ivybus Specific --------- # 
 # UNCOMMENT FOR ALESSANDROS LAPTOP:
@@ -59,10 +60,10 @@ import pprzlink.message as message
                                       # LOAD CAMERA PARAMETERS #
 # ------------------------------------------------------------------------------------------------------- #
 # UNCOMMENT FOR ALESSANDROS LAPTOP:
-# pathLoad = './CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w640_h480.xml'
+# pathLoad = './CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w1920_h1080_HERELINKV2.xml'
 
-# pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w1920_h1080_HERELINKV2.xml'
-pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w640_h480.xml'
+pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w1920_h1080_HERELINKV2.xml'
+# pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w640_h480.xml'
 cv_file = cv2.FileStorage(pathLoad, cv2.FILE_STORAGE_READ)
 camera_Matrix = cv_file.getNode("cM").mat()
 distortion_Coeff = cv_file.getNode("dist").mat()
@@ -75,18 +76,25 @@ MARKER_SIZE = 1.107                   # Size of Aruco marker in [m] -> 1.107 [m]
 pitch_values = None                   # Global variable to store Ivybus received pitch values
 roll_values = None                    # Global variable to store Ivybus received roll values
 yaw_values = None                     # Global variable to store Ivybus received yaw values
-lat_values = None
-long_values = None
-alt_values = None
-
 pprz_attitude_conversion = 0.0139882  # Unit conversion from pprz message to degrees
+NORTH_values = None                   # Global variable to store Ivybus received NORTH values
+EAST_values = None                    # Global variable to store Ivybus received EAST values
+DOWN_values = None                    # Global variable to store Ivybus received DOWN values
+pprz_NED_conversion = 0.0039063       # Unit conversion from pprz message to meters
+
+scaling_factor_X = -0.2976 # Scaling factor to account for reduced frame size in Aruco marker X measurements
+scaling_factor_Y = -0.2468 # Scaling factor to account for reduced frame size in Aruco marker Y measurements
+scaling_factor_Z = -0.092  # Scaling factor to account for reduced frame size in Aruco marker Z measurements
 
 X_m = []                              # Variable to save measured X value
 Y_m = []                              # Variable to save measured Y value
 Z_m = []                              # Variable to save measured Z value
-NORTH_m = []                          # Variable to save measured NORTH value
-EAST_m  = []                          # Variable to save measured EAST value
-DOWN_m  = []                          # Variable to save measured DOWN value
+NORTH_m = []                          # Variable to save measured Aruco marker NORTH value
+EAST_m  = []                          # Variable to save measured Aruco marker EAST value
+DOWN_m  = []                          # Variable to save measured Aruco marker DOWN value
+NORTH_d_m = []                        # Variable to save measured drone NORTH value
+EAST_d_m  = []                        # Variable to save measured drone EAST value
+DOWN_d_m  = []                        # Variable to save measured drone DOWN value
 pitch_m = []                          # Variable to save measured pitch value
 roll_m  = []                          # Variable to save measured roll value
 yaw_m   = []                          # Variable to save measured yaw value
@@ -94,7 +102,7 @@ time_m = []                           # Variable to save measured time
 
                                   # FUNCTIONS -> IVYBUS MESSAGES #
 # ------------------------------------------------------------------------------------------------------- #
-# --------- Bind to Drone Attitude and Location Message --------- # 
+# --------- Bind to Drone Attitude Message --------- # 
 def attitude_callback(ac_id, pprzMsg):
     global pitch_values
     global roll_values
@@ -107,31 +115,32 @@ def attitude_callback(ac_id, pprzMsg):
     roll_values  = roll
     yaw_values   = yaw
 
-def geodetic_callback(ac_id, pprzMsg):
-    global lat_values
-    global long_values
-    global alt_values
+# --------- Bind to Drone NED Position Message --------- # 
+def NED_callback(ac_id, pprzMsg):
+    global NORTH_values
+    global EAST_values
+    global DOWN_values
     
-    lat = pprzMsg['theta']
-    long = pprzMsg['phi']
-    alt = pprzMsg['psi']
-    lat_values = lat
-    long_values  = long
-    alt_values   = alt
+    NORTH_drone  = pprzMsg['north']
+    EAST_drone   = pprzMsg['east']
+    DOWN_drone   = pprzMsg['up']
+    NORTH_values = NORTH_drone
+    EAST_values  = EAST_drone
+    DOWN_values  = DOWN_drone
 
-
-# --------- Get Attitude and Location Values --------- # 
+# --------- Get Attitude Values --------- # 
 def get_attitude_values():
     global pitch_values
     global roll_values
     global yaw_values
     return pitch_values, roll_values, yaw_values
 
-def get_geodetic_values():
-    global lat_values
-    global long_values
-    global alt_values
-    return lat_values, long_values, alt_values
+# --------- Get NED Position Values --------- # 
+def get_NED_values():
+    global NORTH_values
+    global EAST_values
+    global DOWN_values
+    return NORTH_values, EAST_values, DOWN_values
 
                                   # FUNCTIONS -> NED COORDINATES CONVERSION #
 # ------------------------------------------------------------------------------------------------------- #
@@ -290,8 +299,7 @@ ivy.start()
 
 # --------- Subscribe to Ivy Messages --------- # 
 ivy.subscribe(attitude_callback, message.PprzMessage("telemetry", "ROTORCRAFT_FP"))
-ivy.subscribe(geodetic_callback, message.PprzMessage("telemetry", "ROTORCRAFT_FP"))
-
+ivy.subscribe(NED_callback, message.PprzMessage("telemetry", "ROTORCRAFT_FP"))
 
                                         # Ivybus MESSAGES CHECK #
 # ------------------------------------------------------------------------------------------------------- #
@@ -313,21 +321,6 @@ ivy.subscribe(geodetic_callback, message.PprzMessage("telemetry", "ROTORCRAFT_FP
 #     print(f"Roll [deg]: {roll}")
 #     print(f"Yaw [deg]: {yaw}")
 
-                                 # FUNCTION -> MOVE WAYPOINT and asks which AIRFRAME is being used #
-# ------------------------------------------------------------------------------------------------------- #
-def move_waypoint(ac_id, wp_id, NORTH, EAST, DOWN):
-    msg = message.PprzMessage("ground", "MOVE_WAYPOINT")
-    msg['ac_id'] = ac_id
-    msg['wp_id'] = wp_id
-    msg['x'] = NORTH
-    msg['y'] = EAST
-    msg['z'] = DOWN
-    print("Sending message: %s" % msg)
-    ivy.send(msg)
-    time.sleep(0.5)
-
-ac_id = input("What Aicraft ID is it being used: ")
-
                                               # VIDEO #
 # ------------------------------------------------------------------------------------------------------- #
 # --------- Load Video --------- #
@@ -345,11 +338,11 @@ frame_height = int(cap.get(4))
 
 # --------- Write Video Setup --------- #
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')                                                     # Define video codec (FOURCC code)
-out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/VALKENBURG_07_09_23_TEST2_CompleteV1.mp4', 
+out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/VALKENBURG_08_09_23_TEST1_CompleteV2.mp4', 
                       fourcc, FPS, (frame_width, frame_height))                                      # Create VideoWriter object 
 
 # UNCOMMENT FOR ALESSANDROS LAPTOP:
-# out = cv2.VideoWriter('./Live_Videos/VALKENBURG_07_09_23_TEST2_CompleteV1.mp4', 
+# out = cv2.VideoWriter('./Live_Videos/VALKENBURG_08_09_23_TEST1_CompleteV2.mp4', 
 #                       fourcc, FPS, (frame_width, frame_height))                                      # Create VideoWriter object 
 
 
@@ -397,8 +390,37 @@ while(cap.isOpened()):
   current_time = live_time - start_time
   time_m.append(current_time)
 
-  # # --------- Get Attitude Values from Ivybus --------- # 
+  # --------- Get Attitude Values from Ivybus --------- # 
   pitch, roll, yaw = get_attitude_values()
+  
+  pitch = float(pitch)
+  roll  = float(roll)
+  yaw   = float(yaw)
+  
+  pitch = pitch*pprz_attitude_conversion
+  roll  = roll*pprz_attitude_conversion
+  yaw   = yaw*pprz_attitude_conversion 
+
+  pitch_m.append(pitch) # Save measured pitch
+  roll_m.append(pitch)  # Save measured roll
+  yaw_m.append(pitch)   # Save measured yaw
+
+  # --------- Get NED Values from Ivybus --------- # 
+  NORTH_d, EAST_d, DOWN_d = get_NED_values()
+
+  NORTH_d = float(NORTH_d)
+  EAST_d  = float(EAST_d)
+  DOWN_d  = float(DOWN_d)
+
+  DOWN_d = -DOWN_d          # Drone sends UP value, so negate axis
+  
+  NORTH_d = NORTH_d*pprz_NED_conversion
+  EAST_d  = EAST_d*pprz_NED_conversion
+  DOWN_d  = DOWN_d*pprz_NED_conversion 
+
+  NORTH_d_m.append(NORTH_d) # Save measured drone NORTH
+  EAST_d_m.append(EAST_d)   # Save measured drone EAST
+  DOWN_d_m.append(DOWN_d)   # Save measured drone DOWN
 
   # --------- Read Frame-by-Frame --------- # 
   ret, frame = cap.read()
@@ -423,18 +445,6 @@ while(cap.isOpened()):
 
     # --------- Show Drone Attitude --------- # 
     if pitch is not None:
-      pitch = float(pitch)
-      roll  = float(roll)
-      yaw   = float(yaw)
-
-      pitch = pitch*pprz_attitude_conversion
-      roll  = roll*pprz_attitude_conversion
-      yaw   = yaw*pprz_attitude_conversion 
-
-      pitch_m.append(pitch) # Save measured pitch
-      roll_m.append(pitch)  # Save measured roll
-      yaw_m.append(pitch)   # Save measured yaw
-
       frame = visualiseDroneAttitude(frame, resized_frame_width, resized_frame_height, pitch, roll, yaw)
 
     if len(markerCorners) > 0: # At least one marker detected
@@ -448,27 +458,22 @@ while(cap.isOpened()):
       # --------- Save and Print X, Y, and Z --------- # 
       print(f"-------- ITERATION: {C_STEP} --------") 
       X = tvec[0][0][0]
+      X = X*((scale_percent/100) + scaling_factor_X)
       X_m.append(X)          # Save measured X
-      print(f"X: {X}")
+      print(f"Aruco X: {X}")
 
       Y = tvec[0][0][1]
+      Y = Y*((scale_percent/100) + scaling_factor_Y)
       Y_m.append(Y)          # Save measured Y
-      print(f"Y: {Y}")
+      print(f"Aruco Y: {Y}")
 
       Z = tvec[0][0][2]
+      Z = Z*((scale_percent/100) + scaling_factor_Z)
       Z_m.append(Z)          # Save measured Z
-      print(f"ALTITUDE: {Z}")
+      print(f"Aruco ALTITUDE: {Z}")
 
-      # --------- NED Conversion --------- # 
+      # --------- NED Conversion and Moving to Relative Position --------- # 
       if pitch is not None:  
-        pitch = float(pitch)
-        roll  = float(roll)
-        yaw   = float(yaw)
-
-        pitch = pitch*pprz_attitude_conversion
-        roll  = roll*pprz_attitude_conversion
-        yaw   = yaw*pprz_attitude_conversion
-
         pitch = math.radians(pitch)
         roll  = math.radians(roll)
         yaw   = math.radians(yaw)
@@ -483,21 +488,24 @@ while(cap.isOpened()):
 
         # --------- Convert Aruco Position in Image Coordinates to NED Coordinates Relative to Drone --------- # 
         NORTH, EAST, DOWN = ned_conversion(pitch, roll, yaw, aruco_position)
-        lat, long, alt = pymap3d.ned2geodetic(NORTH, EAST, DOWN, )
 
-        # --------- Move Waypoint to Aruco Marker NED Position --------- # 
-        wp_id = 11
-        move_waypoint(ac_id, wp_id, NORTH, EAST, DOWN)
+        # --------- Save and Print Aruco Marker NORTH, EAST, and DOWN --------- # 
+        NORTH_m.append(NORTH)        # Save measured Aruco Marker NORTH
+        print(f"Aruco NORTH: {NORTH}")
 
-        # --------- Save and Print NORTH, EAST, and DOWN --------- # 
-        NORTH_m.append(NORTH)        # Save measured NORTH
-        print(f"NORTH: {NORTH}")
+        EAST_m.append(EAST)          # Save measured Aruco Marker EAST
+        print(f"Aruco EAST: {EAST}")
 
-        EAST_m.append(EAST)          # Save measured EAST
-        print(f"EAST: {EAST}")
+        DOWN_m.append(DOWN)          # Save measured Aruco Marker DOWN
+        print(f"Aruco DOWN: {DOWN}")
 
-        DOWN_m.append(DOWN)          # Save measured DOWN
-        print(f"DOWN: {DOWN}")
+      # --------- Print Drone NORTH, EAST, and DOWN --------- # 
+      if NORTH_d is not None:
+        print(f"Drone NORTH: {NORTH_d}")
+
+        print(f"Drone EAST: {EAST_d}")
+
+        print(f"Drone DOWN: {DOWN_d}")
         print("-------------------------------") 
 
       # --------- Visualise Aruco Marker Position --------- # 
@@ -521,78 +529,102 @@ while(cap.isOpened()):
                                             # SAVE MEASURED VARIABLES #
 # ------------------------------------------------------------------------------------------------------- #
 # --------- Outdoor Tests --------- # 
-with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_X_V1', 'w') as csvfile:
+with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_08_09_23_TEST1_ArucoX_V2', 'w') as csvfile:
     writer=csv.writer(csvfile, delimiter=',')
     writer.writerows(zip(X_m, time_m))
 
-with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_Y_V1', 'w') as csvfile:
+with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_08_09_23_TEST1_ArucoY_V2', 'w') as csvfile:
     writer=csv.writer(csvfile, delimiter=',')
     writer.writerows(zip(Y_m, time_m))
 
-with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_Z_V1', 'w') as csvfile:
+with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_08_09_23_TEST1_ArucoZ_V2', 'w') as csvfile:
     writer=csv.writer(csvfile, delimiter=',')
     writer.writerows(zip(Z_m, time_m))
 
-with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_NORTH_V1', 'w') as csvfile:
+with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_08_09_23_TEST1_ArucoNORTH_V2', 'w') as csvfile:
     writer=csv.writer(csvfile, delimiter=',')
     writer.writerows(zip(NORTH_m, time_m))
 
-with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_EAST_V1', 'w') as csvfile:
+with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_08_09_23_TEST1_ArucoEAST_V2', 'w') as csvfile:
     writer=csv.writer(csvfile, delimiter=',')
     writer.writerows(zip(EAST_m, time_m))
 
-with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_DOWN_V1', 'w') as csvfile:
+with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_08_09_23_TEST1_ArucoDOWN_V2', 'w') as csvfile:
     writer=csv.writer(csvfile, delimiter=',')
     writer.writerows(zip(DOWN_m, time_m))
 
-with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_Pitch_V1', 'w') as csvfile:
+with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_08_09_23_TEST1_DronePitch_V2', 'w') as csvfile:
     writer=csv.writer(csvfile, delimiter=',')
     writer.writerows(zip(pitch_m, time_m))
 
-with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_Roll_V1', 'w') as csvfile:
+with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_08_09_23_TEST1_DroneRoll_V2', 'w') as csvfile:
     writer=csv.writer(csvfile, delimiter=',')
     writer.writerows(zip(roll_m, time_m))
 
-with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_Yaw_V1', 'w') as csvfile:
+with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_08_09_23_TEST1_DroneYaw_V2', 'w') as csvfile:
     writer=csv.writer(csvfile, delimiter=',')
     writer.writerows(zip(yaw_m, time_m))
 
+with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_08_09_23_TEST1_DroneNORTH_V2', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(NORTH_d_m, time_m))
+
+with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_08_09_23_TEST1_DroneEAST_V2', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(EAST_d_m, time_m))
+
+with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/VALKENBURG_08_09_23_TEST1_DroneDOWN_V2', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(DOWN_d_m, time_m))
+
 # UNCOMMENT FOR ALESSANDROS LAPTOP:
-# with open('./Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_X_V1', 'w') as csvfile:
+# with open('./Measured_Variables/Outdoor_Tests/VALKENBURG_08_09_23_TEST1_ArucoX_V2', 'w') as csvfile:
 #     writer=csv.writer(csvfile, delimiter=',')
 #     writer.writerows(zip(X_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_Y_V1', 'w') as csvfile:
+# with open('./Measured_Variables/Outdoor_Tests/VALKENBURG_08_09_23_TEST1_ArucoY_V2', 'w') as csvfile:
 #     writer=csv.writer(csvfile, delimiter=',')
 #     writer.writerows(zip(Y_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_Z_V1', 'w') as csvfile:
+# with open('./Measured_Variables/Outdoor_Tests/VALKENBURG_08_09_23_TEST1_ArucoZ_V2', 'w') as csvfile:
 #     writer=csv.writer(csvfile, delimiter=',')
 #     writer.writerows(zip(Z_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_NORTH_V1', 'w') as csvfile:
+# with open('./Measured_Variables/Outdoor_Tests/VALKENBURG_08_09_23_TEST1_ArucoNORTH_V2', 'w') as csvfile:
 #     writer=csv.writer(csvfile, delimiter=',')
 #     writer.writerows(zip(NORTH_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_EAST_V1', 'w') as csvfile:
+# with open('./Measured_Variables/Outdoor_Tests/VALKENBURG_08_09_23_TEST1_ArucoEAST_V2', 'w') as csvfile:
 #     writer=csv.writer(csvfile, delimiter=',')
 #     writer.writerows(zip(EAST_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_DOWN_V1', 'w') as csvfile:
+# with open('./Measured_Variables/Outdoor_Tests/VALKENBURG_08_09_23_TEST1_ArucoDOWN_V2', 'w') as csvfile:
 #     writer=csv.writer(csvfile, delimiter=',')
 #     writer.writerows(zip(DOWN_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_Pitch_V1', 'w') as csvfile:
+# with open('./Measured_Variables/Outdoor_Tests/VALKENBURG_08_09_23_TEST1_DronePitch_V2', 'w') as csvfile:
 #     writer=csv.writer(csvfile, delimiter=',')
 #     writer.writerows(zip(pitch_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_Roll_V1', 'w') as csvfile:
+# with open('./Measured_Variables/Outdoor_Tests/VALKENBURG_08_09_23_TEST1_DroneRoll_V2', 'w') as csvfile:
 #     writer=csv.writer(csvfile, delimiter=',')
 #     writer.writerows(zip(roll_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/VALKENBURG_07_09_23_TEST1_Yaw_V1', 'w') as csvfile:
+# with open('./Measured_Variables/Outdoor_Tests/VALKENBURG_08_09_23_TEST1_DroneYaw_V2', 'w') as csvfile:
 #     writer=csv.writer(csvfile, delimiter=',')
 #     writer.writerows(zip(yaw_m, time_m))
+
+# with open('./Measured_Variables/Outdoor_Tests/VALKENBURG_08_09_23_TEST1_DroneNORTH_V2', 'w') as csvfile:
+#     writer=csv.writer(csvfile, delimiter=',')
+#     writer.writerows(zip(NORTH_d_m, time_m))
+
+# with open('./Measured_Variables/Outdoor_Tests/VALKENBURG_08_09_23_TEST1_DroneEAST_V2', 'w') as csvfile:
+#     writer=csv.writer(csvfile, delimiter=',')
+#     writer.writerows(zip(EAST_d_m, time_m))
+
+# with open('./Measured_Variables/Outdoor_Tests/VALKENBURG_08_09_23_TEST1_DroneDOWN_V2', 'w') as csvfile:
+#     writer=csv.writer(csvfile, delimiter=',')
+#     writer.writerows(zip(DOWN_d_m, time_m))
 
 # --------- Indoor Tests --------- # 
 # with open('/home/kevin/IMAV2023/Measured_Variables/Indoor_Tests/TEST1_X_V1', 'w') as csvfile:
