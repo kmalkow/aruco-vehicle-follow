@@ -47,10 +47,10 @@ import numpy as np
                                       # LOAD CAMERA PARAMETERS #
 # ------------------------------------------------------------------------------------------------------- #
 # UNCOMMENT FOR ALESSANDROS LAPTOP:
-# pathLoad = './CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w640_h480.xml'
+# pathLoad = './CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w1920_h1080_HERELINKV2.xml'
 
-# pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w1920_h1080_HERELINKV2.xml'
-pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w640_h480.xml'
+pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w1920_h1080_HERELINKV2.xml'
+# pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w640_h480.xml'
 cv_file = cv2.FileStorage(pathLoad, cv2.FILE_STORAGE_READ)
 camera_Matrix = cv_file.getNode("cM").mat()
 distortion_Coeff = cv_file.getNode("dist").mat()
@@ -64,6 +64,10 @@ X_m = []                    # Measured X value
 Y_m = []                    # Measured Y value
 Z_m = []                    # Measured Z value
 time_m = []                 # Measured time
+
+scaling_factor_X = -0.2976 # Scaling factor to account for reduced frame size in Aruco marker X measurements
+scaling_factor_Y = -0.2468 # Scaling factor to account for reduced frame size in Aruco marker Y measurements
+scaling_factor_Z = -0.092  # Scaling factor to account for reduced frame size in Aruco marker Z measurements
 
                                       # FUNCTION -> VISUALISE LEGEND #
 # ------------------------------------------------------------------------------------------------------- #
@@ -254,15 +258,19 @@ while(cap.isOpened()):
       (rvec - tvec).any()                                                    # Remove Numpy value array error
 
       # --------- Save and Print X, Y, and Z --------- # 
+      print(f"-------- ITERATION: {C_STEP} --------") 
       X = tvec[0][0][0]
+      X = X*((scale_percent/100) + scaling_factor_X)
       X_m.append(X)          # Save measured X
       print(f"X: {X}")
 
       Y = tvec[0][0][1]
+      Y = Y*((scale_percent/100) + scaling_factor_Y)
       Y_m.append(Y)          # Save measured Y
       print(f"Y: {Y}")
 
       Z = tvec[0][0][2]
+      Z = Z*((scale_percent/100) + scaling_factor_Z)
       Z_m.append(Z)          # Save measured Z
       print(f"ALTITUDE: {Z}")
       print("-------------------------------") 

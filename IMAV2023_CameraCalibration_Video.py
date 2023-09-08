@@ -155,7 +155,7 @@ while(cap.isOpened()):
 #  ------------------------------------------------------------------------- #
 # Calibrate camera -> [..., camera matrix, distortion coefficients, rotation vectors, translation vectors]
 print("Starting camera calibration...")
-ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, (frame_width, frame_height), None, None)
+ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray_frame.shape[::-1], None, None)
 print("Finished camera calibration...")
 print("-----------------------------")
 
