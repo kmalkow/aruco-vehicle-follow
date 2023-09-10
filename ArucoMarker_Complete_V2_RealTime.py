@@ -753,7 +753,7 @@ while(cap.isOpened()):
 
       NORTH_DRONE = NORTH_DRONE*pprz_NED_conversion
       EAST_DRONE  = EAST_DRONE*pprz_NED_conversion
-      DOWN_DRONE  = -DOWN_DRONE*pprz_NED_conversion # Drone sends UP value, so negate axis
+      DOWN_DRONE  = DOWN_DRONE*pprz_NED_conversion # Drone sends UP value, so negate axis
 
       NORTH_DRONE_m.append(NORTH_DRONE) # Save measured drone NORTH
       print(f"Drone NORTH: {NORTH_DRONE}")
@@ -765,7 +765,7 @@ while(cap.isOpened()):
       print(f"Drone DOWN: {DOWN_DRONE}")
       
       # --------- Visualise NED Drone Position --------- # 
-      frame = visualiseDroneNEDPosition(NORTH_DRONE, EAST_DRONE, -DOWN_DRONE, frame, resized_frame_width, resized_frame_height)
+      frame = visualiseDroneNEDPosition(NORTH_DRONE, EAST_DRONE, DOWN_DRONE, frame, resized_frame_width, resized_frame_height)
 
     if len(markerCorners) > 0: # At least one marker detected
       # --------- Update Iteration Counter --------- # 
