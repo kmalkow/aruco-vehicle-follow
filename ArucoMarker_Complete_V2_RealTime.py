@@ -334,7 +334,7 @@ ivy.subscribe(lat_long_callback, message.PprzMessage("telemetry", "GPS_INT"))
 
                                  # FUNCTION -> VISUALISE MARKER POSITION #
 # ------------------------------------------------------------------------------------------------------- #
-def move_waypoint(ac_id, wp_id, lat, long):
+def move_waypoint(ac_id, wp_id, lat, long, alt):
     msg = message.PprzMessage("ground", "MOVE_WAYPOINT")
     msg['ac_id'] = ac_id
     msg['wp_id'] = wp_id
@@ -402,7 +402,7 @@ arucoParameters =  cv2.aruco.DetectorParameters()
 
 # STEP 1: Adaptive thresholding parameters
 arucoParameters.adaptiveThreshWinSizeMin  = 3
-arucoParameters.adaptiveThreshWinSizeMax  = 15
+arucoParameters.adaptiveThreshWinSizeMax  = 12
 arucoParameters.adaptiveThreshWinSizeStep = 3
 arucoParameters.adaptiveThreshConstant    = 11
 

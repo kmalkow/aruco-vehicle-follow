@@ -201,7 +201,7 @@ arucoParameters =  cv2.aruco.DetectorParameters()
 
 # STEP 1: Adaptive thresholding parameters
 arucoParameters.adaptiveThreshWinSizeMin  = 3
-arucoParameters.adaptiveThreshWinSizeMax  = 15
+arucoParameters.adaptiveThreshWinSizeMax  = 12
 arucoParameters.adaptiveThreshWinSizeStep = 3
 arucoParameters.adaptiveThreshConstant    = 11
 
