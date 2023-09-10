@@ -186,7 +186,7 @@ def visualizeLegend(frame_legend, width, height):
   frame_legend = cv2.putText(frame_legend, text, org, font, fontScale, color, lineThickness, cv2.LINE_AA)
 
   # --------- Show Aruco Z --------- # 
-  org = (int(0.03*width), int(0.21*height))
+  org = (int(0.03*width), int(0.205*height))
   text = f"Z: "
   font = cv2.FONT_HERSHEY_PLAIN
   fontScale = 1
@@ -195,7 +195,7 @@ def visualizeLegend(frame_legend, width, height):
   frame_legend = cv2.putText(frame_legend, text, org, font, fontScale, color, lineThickness, cv2.LINE_AA)
 
   # --------- Show Aruco DOWN --------- # 
-  org = (int(0.03*width), int(0.235*height))
+  org = (int(0.03*width), int(0.23*height))
   text = f"DOWN: "
   font = cv2.FONT_HERSHEY_PLAIN
   fontScale = 1
@@ -204,7 +204,7 @@ def visualizeLegend(frame_legend, width, height):
   frame_legend = cv2.putText(frame_legend, text, org, font, fontScale, color, lineThickness, cv2.LINE_AA)
 
     # --------- Show Aruco ALTITUDE --------- # 
-  org = (int(0.03*width), int(0.26*height))
+  org = (int(0.03*width), int(0.255*height))
   text = f"ALTITUDE: "
   font = cv2.FONT_HERSHEY_PLAIN
   fontScale = 1
@@ -275,20 +275,11 @@ def visualizeLegend(frame_legend, width, height):
   lineThickness = 2
   frame_legend = cv2.putText(frame_legend, text, org, font, fontScale, color, lineThickness, cv2.LINE_AA)
 
-  # # --------- Show Drone DOWN --------- # 
-  # org = (int(0.03*width), int(0.465*height))
-  # text = f"DOWN: "
-  # font = cv2.FONT_HERSHEY_PLAIN
-  # fontScale = 1
-  # color = (255, 255, 255)
-  # lineThickness = 2
-  # frame_legend = cv2.putText(frame_legend, text, org, font, fontScale, color, lineThickness, cv2.LINE_AA)
-
   # --------- Draw Aruco Legend Outline --------- # 
   frame_legend = cv2.rectangle(frame_legend, (int(0.02*width), int(0.175*height)), (int(0.165*width), int(0.38*height)), (255, 255, 255), 2)
 
   # --------- Draw Drone Legend Outline --------- # 
-  frame_legend = cv2.rectangle(frame_legend, (int(0.02*width), int(0.43*height)), (int(0.165*width), int(0.7*height)), (255, 255, 255), 2)
+  frame_legend = cv2.rectangle(frame_legend, (int(0.02*width), int(0.43*height)), (int(0.18*width), int(0.77*height)), (255, 255, 255), 2)
 
   # --------- Draw Reference System --------- # 
   frame_legend = cv2.line(frame_legend,(int(0.05*width), int(0.3*height)), (int(0.09*width), int(0.3*height)), (0, 0, 255), 3)                   # X = red
@@ -301,6 +292,117 @@ def visualizeLegend(frame_legend, width, height):
 
   return frame_legend
 
+                          # FUNCTION -> VISUALISE X, Y, Z ARUCO MARKER POSITION #
+# ------------------------------------------------------------------------------------------------------- #
+def visualiseArucoXYZMarkerPosition(X_visual, Y_visual, Z_visual, frame_pos, width, height, r, t, C, d):
+  # --------- Create Projection from 3D to 2D --------- # 
+  axes_3D = np.float32([[1, 0, 0], [0, -1, 0], [0, 0, -1], [0, 0, 0]]).reshape(-1, 3)    # Points in 3D space
+  axisPoints, _ = cv2.projectPoints(axes_3D, r, t, C, d)                                 # Project 3D points into 2D image plane
+
+  # --------- Create X-Marker Position Visualisation --------- # 
+  org_1 = (int(width/1.99), int(axisPoints[3][0][1]))   # Show X value on frame -> if positive show green, else show red
+  text_1 = f"X: {round(X_visual, 1)}[m]"
+  font_1 = cv2.FONT_HERSHEY_PLAIN
+  fontScale_1 = 1.5
+  lineThickness_1 = 2
+  if X_visual >= 0:
+    color_1 = (0, 255, 0)
+  else:
+    color_1 = (0, 0, 255)
+  cv2.putText(frame_pos, text_1, org_1, font_1, fontScale_1, color_1, lineThickness_1, cv2.LINE_AA)
+
+  # --------- Create Y-Marker Position Visualisation --------- # 
+  org_2 = (int(width/2), int(height/2))    # Show Y value on frame -> if positive show green, else show red
+  text_2 = f"Y: {round(Y_visual, 1)}[m]"
+  font_2 = cv2.FONT_HERSHEY_PLAIN
+  fontScale_2 = 1.5
+  lineThickness_2 = 2
+  if Y_visual >= 0:
+    color_2 = (0, 255, 0)
+  else:
+    color_2 = (0, 0, 255)
+  cv2.putText(frame_pos, text_2, org_2, font_2, fontScale_2, color_2, lineThickness_2, cv2.LINE_AA)
+
+  # --------- Aruco Z Visualisation --------- # 
+  org_3 = (int(0.1*width), int(0.205*height))
+  text_3 = f" {round(Z_visual, 1)}[m]"
+  font_3 = cv2.FONT_HERSHEY_PLAIN
+  fontScale_3 = 1
+  color_3 = (255, 255, 255)
+  lineThickness_3 = 2
+  cv2.putText(frame_pos, text_3, org_3, font_3, fontScale_3, color_3, lineThickness_3, cv2.LINE_AA)
+
+  # --------- Euclidean Distance Visualisation --------- # 
+  X_start_Distline = width/2
+  Y_start_Distline = height/2
+  X_end_Distline =  axisPoints[3][0][0]
+  Y_end_Distline = axisPoints[3][0][1]
+  cv2.line(frame_pos, (int(X_start_Distline), int(Y_start_Distline)), (int(X_end_Distline), int(Y_end_Distline)), (255, 255, 255), 3)
+
+  return frame_pos
+
+                                # FUNCTION -> VISUALISE NED MARKER POSITION #
+# ------------------------------------------------------------------------------------------------------- #
+def visualiseArucoNEDMarkerPosition(NORTH_visual, EAST_visual, DOWN_visual, frame_pos, width, height, r, t, C, d):
+    # --------- Create Projection from 3D to 2D --------- # 
+  axes_3D = np.float32([[1, 0, 0], [0, -1, 0], [0, 0, -1], [0, 0, 0]]).reshape(-1, 3)    # Points in 3D space
+  axisPoints, _ = cv2.projectPoints(axes_3D, r, t, C, d)                                 # Project 3D points into 2D image plane
+
+  # --------- Create NORTH Marker Position Visualisation --------- # 
+  X_start_Xline = width/2
+  Y_start_Xline = axisPoints[3][0][1]
+  X_end_Xline =  axisPoints[3][0][0]
+  Y_end_Xline =  axisPoints[3][0][1]
+  
+  if NORTH_visual >= 0:  # If postive NORTH value -> show green 
+    cv2.line(frame_pos, (int(X_start_Xline), int(Y_start_Xline)), (int(X_end_Xline), int(Y_end_Xline)), (0, 255, 0), 3)
+  else:                  # Else -> show red 
+    cv2.line(frame_pos, (int(X_start_Xline), int(Y_start_Xline)), (int(X_end_Xline), int(Y_end_Xline)), (0, 0, 255), 3)
+
+  org_1 = (int(width/1.99), int(axisPoints[3][0][1]/0.9))   # Show X value on frame -> if positive show green, else show red
+  text_1 = f"NORTH: {round(NORTH_visual, 1)}[m]"
+  font_1 = cv2.FONT_HERSHEY_PLAIN
+  fontScale_1 = 1.5
+  lineThickness_1 = 2
+  if NORTH_visual >= 0:
+    color_1 = (0, 255, 0)
+  else:
+    color_1 = (0, 0, 255)
+  cv2.putText(frame_pos, text_1, org_1, font_1, fontScale_1, color_1, lineThickness_1, cv2.LINE_AA)
+
+  # --------- Create EAST Marker Position Visualisation --------- # 
+  X_start_Yline = width/2
+  Y_start_Yline = height/2
+  X_end_Yline =  width/2
+  Y_end_Yline =  axisPoints[3][0][1]
+  
+  if EAST_visual >= 0: # If postive X-value -> show green 
+    cv2.line(frame_pos, (int(X_start_Yline), int(Y_start_Yline)), (int(X_end_Yline), int(Y_end_Yline)), (0, 255, 0), 3)
+  else:                # Else -> show red 
+    cv2.line(frame_pos, (int(X_start_Yline), int(Y_start_Yline)), (int(X_end_Yline), int(Y_end_Yline)), (0, 0, 255), 3)
+
+  org_2 = (int(width/2), int(height/1.88))    # Show Y value on frame -> if positive show green, else show red
+  text_2 = f"EAST: {round(EAST_visual, 1)}[m]"
+  font_2 = cv2.FONT_HERSHEY_PLAIN
+  fontScale_2 = 1.5
+  lineThickness_2 = 2
+  if EAST_visual >= 0:
+    color_2 = (0, 255, 0)
+  else:
+    color_2 = (0, 0, 255)
+  cv2.putText(frame_pos, text_2, org_2, font_2, fontScale_2, color_2, lineThickness_2, cv2.LINE_AA)
+  
+  # --------- Aruco DOWN Visualisation --------- # 
+  org_3 = (int(0.1*width), int(0.235*height))
+  text_3 = f" {round(DOWN_visual, 1)}[m]"
+  font_3 = cv2.FONT_HERSHEY_PLAIN
+  fontScale_3 = 1
+  color_3 = (255, 255, 255)
+  lineThickness_3 = 2
+  cv2.putText(frame_pos, text_3, org_3, font_3, fontScale_3, color_3, lineThickness_3, cv2.LINE_AA)
+
+  return frame_pos
+
                                 # FUNCTION -> VISUALISE DRONE ATTITUDE #
 # ------------------------------------------------------------------------------------------------------- #
 def visualiseDroneAttitude(frame_attitude, width, height, pitch_visual, roll_visual, yaw_visual):
@@ -309,138 +411,91 @@ def visualiseDroneAttitude(frame_attitude, width, height, pitch_visual, roll_vis
   color = (255, 255, 255)
   lineThickness = 2
   
+  org_1 = (int(0.03*width), int(0.465*height))
+  text_1 = f"Pitch: "
+  frame_attitude = cv2.putText(frame_attitude, text_1, org_1, font, fontScale, color, lineThickness, cv2.LINE_AA)
+
+  org_2 = (int(0.03*width), int(0.5*height))
+  text_2 = f"Roll: "
+  frame_attitude = cv2.putText(frame_attitude, text_2, org_2, font, fontScale, color, lineThickness, cv2.LINE_AA)
+
+  org_3 = (int(0.03*width), int(0.535*height))
+  text_3 = f"Yaw: "
+  frame_attitude = cv2.putText(frame_attitude, text_3, org_3, font, fontScale, color, lineThickness, cv2.LINE_AA)
+
   if pitch_visual >= 0:   # If postive pitch value -> show green 
-    org_1 = (int(0.03*width), int(0.465*height))
-    text_1 = f"Pitch: {round(pitch_visual, 2)}[deg.]"
+    org_1 = (int(0.07*width), int(0.465*height))
+    text_1 = f" {round(pitch_visual, 2)}[deg.]"
     frame_attitude = cv2.putText(frame_attitude, text_1, org_1, font, fontScale, (0, 255, 0), lineThickness, cv2.LINE_AA)
   else:                   # Else -> show red 
-    org_1 = (int(0.03*width), int(0.465*height))
-    text_1 = f"Pitch: {round(pitch_visual, 2)}[deg.]"
+    org_1 = (int(0.07*width), int(0.465*height))
+    text_1 = f" {round(pitch_visual, 2)}[deg.]"
     frame_attitude = cv2.putText(frame_attitude, text_1, org_1, font, fontScale, (0, 0, 255), lineThickness, cv2.LINE_AA)
 
   if roll_visual >= 0:    # If postive roll value -> show green 
-    org_2 = (int(0.03*width), int(0.5*height))
-    text_2 = f"Roll: {round(roll_visual, 2)}[deg.]"
+    org_2 = (int(0.07*width), int(0.5*height))
+    text_2 = f" {round(roll_visual, 2)}[deg.]"
     frame_attitude = cv2.putText(frame_attitude, text_2, org_2, font, fontScale, (0, 255, 0), lineThickness, cv2.LINE_AA)
   else:                   # Else -> show red 
-    org_2 = (int(0.03*width), int(0.5*height))
-    text_2 = f"Roll: {round(roll_visual, 2)}[deg.]"
+    org_2 = (int(0.07*width), int(0.5*height))
+    text_2 = f" {round(roll_visual, 2)}[deg.]"
     frame_attitude = cv2.putText(frame_attitude, text_2, org_2, font, fontScale, (0, 0, 255), lineThickness, cv2.LINE_AA)
   
   if yaw_visual >= 0:    # If postive yaw value -> show green 
-    org_3 = (int(0.03*width), int(0.535*height))
-    text_3 = f"Yaw: {round(yaw_visual, 2)}[deg.]"
+    org_3 = (int(0.07*width), int(0.535*height))
+    text_3 = f" {round(yaw_visual, 2)}[deg.]"
     frame_attitude = cv2.putText(frame_attitude, text_3, org_3, font, fontScale, (0, 255, 0), lineThickness, cv2.LINE_AA)
   else:                   # Else -> show red 
-    org_3 = (int(0.03*width), int(0.535*height))
-    text_3 = f"Yaw: {round(yaw_visual, 2)}[deg.]"
+    org_3 = (int(0.07*width), int(0.535*height))
+    text_3 = f" {round(yaw_visual, 2)}[deg.]"
     frame_attitude = cv2.putText(frame_attitude, text_3, org_3, font, fontScale, (0, 0, 255), lineThickness, cv2.LINE_AA)
 
   return frame_attitude
 
-                          # FUNCTION -> VISUALISE X, Y, Z ARUCO MARKER POSITION #
+                                 # FUNCTION -> VISUALISE NED DRONE POSITION #
 # ------------------------------------------------------------------------------------------------------- #
-def visualiseArucoXYZMarkerPosition(X_visual, Y_visual, Z_visual, frame_pos, width, height, r, t, C, d):
-  # # --------- Create Projection from 3D to 2D --------- # 
-  # axes_3D = np.float32([[1, 0, 0], [0, -1, 0], [0, 0, -1], [0, 0, 0]]).reshape(-1, 3)    # Points in 3D space
-  # axisPoints, _ = cv2.projectPoints(axes_3D, r, t, C, d)                                 # Project 3D points into 2D image plane
-
-  # # --------- Create X-Marker Position Visualisation --------- # 
-  # X_start_Xline = width/2
-  # Y_start_Xline = axisPoints[3][0][1]
-  # X_end_Xline =  axisPoints[3][0][0]
-  # Y_end_Xline =  axisPoints[3][0][1]
+def visualiseDroneNEDPosition(NORTH_visual, EAST_visual, DOWN_visual, frame_pos, width, height):
+  # --------- Drone NORTH Visualisation --------- # 
+  if DOWN_visual >= 0:    # If postive DOWN value -> show green 
+    org_3 = (int(0.1*width), int(0.57*height))
+    text_3 = f" {round(NORTH_visual, 2)}[m]"
+    font_3 = cv2.FONT_HERSHEY_PLAIN
+    fontScale_3 = 1
+    lineThickness_3 = 2
+    cv2.putText(frame_pos, text_3, org_3, font_3, fontScale_3, (0, 255, 0), lineThickness_3, cv2.LINE_AA)
+  else:                   # Else -> show red 
+    org_3 = (int(0.1*width), int(0.57*height))
+    text_3 = f" {round(NORTH_visual, 2)}[m]"
+    font_3 = cv2.FONT_HERSHEY_PLAIN
+    fontScale_3 = 1
+    lineThickness_3 = 2
+    cv2.putText(frame_pos, text_3, org_3, font_3, fontScale_3, (0, 0, 255), lineThickness_3, cv2.LINE_AA)
   
-  # if X_visual >= 0:    # If postive X-value -> show green 
-  #   cv2.line(frame_pos, (int(X_start_Xline), int(Y_start_Xline)), (int(X_end_Xline), int(Y_end_Xline)), (0, 255, 0), 3)
-  # else:                # Else -> show red 
-  #   cv2.line(frame_pos, (int(X_start_Xline), int(Y_start_Xline)), (int(X_end_Xline), int(Y_end_Xline)), (0, 0, 255), 3)
-
-  # org_1 = (int(width/1.99), int(axisPoints[3][0][1]))   # Show X value on frame -> if positive show green, else show red
-  # text_1 = f"X: {round(X_visual, 1)}[m]"
-  # font_1 = cv2.FONT_HERSHEY_PLAIN
-  # fontScale_1 = 1.5
-  # lineThickness_1 = 2
-  # if X_visual >= 0:
-  #   color_1 = (0, 255, 0)
-  # else:
-  #   color_1 = (0, 0, 255)
-  # cv2.putText(frame_pos, text_1, org_1, font_1, fontScale_1, color_1, lineThickness_1, cv2.LINE_AA)
-
-  # # --------- Create Y-Marker Position Visualisation --------- # 
-  # X_start_Yline = width/2
-  # Y_start_Yline = height/2
-  # X_end_Yline =  width/2
-  # Y_end_Yline =  axisPoints[3][0][1]
+  # --------- Drone EAST Visualisation --------- # 
+  if DOWN_visual >= 0:    # If postive DOWN value -> show green 
+    org_3 = (int(0.1*width), int(0.605*height))
+    text_3 = f" {round(EAST_visual, 2)}[m]"
+    font_3 = cv2.FONT_HERSHEY_PLAIN
+    fontScale_3 = 1
+    lineThickness_3 = 2
+    cv2.putText(frame_pos, text_3, org_3, font_3, fontScale_3, (0, 255, 0), lineThickness_3, cv2.LINE_AA)
+  else:                   # Else -> show red 
+    org_3 = (int(0.1*width), int(0.605*height))
+    text_3 = f" {round(EAST_visual, 2)}[m]"
+    font_3 = cv2.FONT_HERSHEY_PLAIN
+    fontScale_3 = 1
+    lineThickness_3 = 2
+    cv2.putText(frame_pos, text_3, org_3, font_3, fontScale_3, (0, 0, 255), lineThickness_3, cv2.LINE_AA)
   
-  # if Y_visual >= 0:    # If postive X-value -> show green 
-  #   cv2.line(frame_pos, (int(X_start_Yline), int(Y_start_Yline)), (int(X_end_Yline), int(Y_end_Yline)), (0, 255, 0), 3)
-  # else:                # Else -> show red 
-  #   cv2.line(frame_pos, (int(X_start_Yline), int(Y_start_Yline)), (int(X_end_Yline), int(Y_end_Yline)), (0, 0, 255), 3)
-
-  # org_2 = (int(width/2), int(height/2))    # Show Y value on frame -> if positive show green, else show red
-  # text_2 = f"Y: {round(Y_visual, 1)}[m]"
-  # font_2 = cv2.FONT_HERSHEY_PLAIN
-  # fontScale_2 = 1.5
-  # lineThickness_2 = 2
-  # if Y_visual >= 0:
-  #   color_2 = (0, 255, 0)
-  # else:
-  #   color_2 = (0, 0, 255)
-  # cv2.putText(frame_pos, text_2, org_2, font_2, fontScale_2, color_2, lineThickness_2, cv2.LINE_AA)
-
-  # --------- Aruco Z Visualisation --------- # 
-  org_3 = (int(0.1*width), int(0.21*height))
-  text_3 = f" {round(Z_visual, 1)}[m]"
+  # --------- Drone DOWN Visualisation --------- # 
+  org_3 = (int(0.1*width), int(0.64*height))
+  text_3 = f" {round(DOWN_visual, 2)}[m]"
   font_3 = cv2.FONT_HERSHEY_PLAIN
   fontScale_3 = 1
-  color_3 = (255, 255, 255)
   lineThickness_3 = 2
-  cv2.putText(frame_pos, text_3, org_3, font_3, fontScale_3, color_3, lineThickness_3, cv2.LINE_AA)
-
-  # # --------- Euclidean Distance Visualisation --------- # 
-  # X_start_Distline = width/2
-  # Y_start_Distline = height/2
-  # X_end_Distline =  axisPoints[3][0][0]
-  # Y_end_Distline = axisPoints[3][0][1]
-  # cv2.line(frame_pos, (int(X_start_Distline), int(Y_start_Distline)), (int(X_end_Distline), int(Y_end_Distline)), (255, 255, 255), 3)
-
+  cv2.putText(frame_pos, text_3, org_3, font_3, fontScale_3, (255, 255, 255), lineThickness_3, cv2.LINE_AA)
+ 
   return frame_pos
-
-#                                 # FUNCTION -> VISUALISE NED MARKER POSITION #
-# # ------------------------------------------------------------------------------------------------------- #
-# def visualiseArucoNEDMarkerPosition(NORTH_visual, EAST_visual, DOWN_visual, frame_pos, width, height, r, t, C, d):
-#   # # --------- Aruco DOWN Visualisation --------- # 
-#   # org_3 = (int(0.1*width), int(0.235*height))
-#   # text_3 = f" {round(DOWN_visual, 1)}[m]"
-#   # font_3 = cv2.FONT_HERSHEY_PLAIN
-#   # fontScale_3 = 1
-#   # color_3 = (255, 255, 255)
-#   # lineThickness_3 = 2
-#   # cv2.putText(frame_pos, text_3, org_3, font_3, fontScale_3, color_3, lineThickness_3, cv2.LINE_AA)
-
-#   return frame_pos
-
-#                                  # FUNCTION -> VISUALISE NED DRONE POSITION #
-# # ------------------------------------------------------------------------------------------------------- #
-# def visualiseDroneNEDMarkerPosition(DOWN_visual, frame_pos, width, height):
-#   # # --------- Drone DOWN Visualisation --------- # 
-#   # if DOWN_visual >= 0:    # If postive DOWN value -> show green 
-#   #   org_3 = (int(0.1*width), int(0.235*height))
-#   #   text_3 = f" {round(DOWN_visual, 1)}[m]"
-#   #   font_3 = cv2.FONT_HERSHEY_PLAIN
-#   #   fontScale_3 = 1
-#   #   lineThickness_3 = 2
-#   #   cv2.putText(frame_pos, text_3, org_3, font_3, fontScale_3, (0, 255, 0), lineThickness_3, cv2.LINE_AA)
-#   # else:                   # Else -> show red 
-#   #   org_3 = (int(0.1*width), int(0.235*height))
-#   #   text_3 = f" {round(DOWN_visual, 1)}[m]"
-#   #   font_3 = cv2.FONT_HERSHEY_PLAIN
-#   #   fontScale_3 = 1
-#   #   lineThickness_3 = 2
-#   #   cv2.putText(frame_pos, text_3, org_3, font_3, fontScale_3, (0, 0, 255), lineThickness_3, cv2.LINE_AA)
-
-#   return frame_pos
 
                                       # Ivybus INITIALISATION #
 # ------------------------------------------------------------------------------------------------------- #
@@ -570,6 +625,29 @@ while(cap.isOpened()):
 
       frame = visualiseDroneAttitude(frame, resized_frame_width, resized_frame_height, PITCH_DRONE, ROLL_DRONE, YAW_DRONE)
 
+    # --------- Save and Print Drone NORTH, EAST, and DOWN --------- # 
+    if NORTH_DRONE is not None:
+      NORTH_DRONE = float(NORTH_DRONE)
+      EAST_DRONE  = float(EAST_DRONE)
+      DOWN_DRONE  = float(DOWN_DRONE)
+
+      NORTH_DRONE = NORTH_DRONE*pprz_NED_conversion
+      EAST_DRONE  = EAST_DRONE*pprz_NED_conversion
+      DOWN_DRONE  = -DOWN_DRONE*pprz_NED_conversion # Drone sends UP value, so negate axis
+
+      NORTH_DRONE_m.append(NORTH_DRONE) # Save measured drone NORTH
+      print(f"Drone NORTH: {NORTH_DRONE}")
+      
+      EAST_DRONE_m.append(EAST_DRONE)   # Save measured drone EAST
+      print(f"Drone EAST: {EAST_DRONE}")      
+      
+      DOWN_DRONE_m.append(DOWN_DRONE)   # Save measured drone DOWN
+      print(f"Drone DOWN: {DOWN_DRONE}")
+      print("-------------------------------") 
+      
+      # --------- Visualise NED Drone Position --------- # 
+      frame = visualiseDroneNEDPosition(NORTH_DRONE, EAST_DRONE, -DOWN_DRONE, frame, resized_frame_width, resized_frame_height)
+
     if len(markerCorners) > 0: # At least one marker detected
       # --------- Update Iteration Counter --------- # 
       C_STEP = C_STEP + 1
@@ -623,30 +701,9 @@ while(cap.isOpened()):
         # --------- Convert Aruco Position in Image Coordinates to NED Coordinates Relative to Drone --------- # 
         NORTH_REL, EAST_REL, DOWN_REL = NED_conversion(PITCH_DRONE, ROLL_DRONE, YAW_DRONE, ARUCO_POSITION_B)
 
-        # --------- Save and Print Drone NORTH, EAST, and DOWN --------- # 
+        # --------- NED Aruco Marker Position --------- # 
         if NORTH_DRONE is not None:
-          NORTH_DRONE = float(NORTH_DRONE)
-          EAST_DRONE  = float(EAST_DRONE)
-          DOWN_DRONE  = float(DOWN_DRONE)
-
-          NORTH_DRONE = NORTH_DRONE*pprz_NED_conversion
-          EAST_DRONE  = EAST_DRONE*pprz_NED_conversion
-          DOWN_DRONE  = -DOWN_DRONE*pprz_NED_conversion # Drone sends UP value, so negate axis
-
-          NORTH_DRONE_m.append(NORTH_DRONE) # Save measured drone NORTH
-          print(f"Drone NORTH: {NORTH_DRONE}")
-          
-          EAST_DRONE_m.append(EAST_DRONE)   # Save measured drone EAST
-          print(f"Drone EAST: {EAST_DRONE}")      
-          
-          DOWN_DRONE_m.append(DOWN_DRONE)   # Save measured drone DOWN
-          print(f"Drone DOWN: {DOWN_DRONE}")
-          print("-------------------------------") 
-
-          # --------- Visualise NED Drone Position --------- # 
-          # frame = visualiseDroneNEDMarkerPosition(DOWN_DRONE, frame, resized_frame_width, resized_frame_height)
-        
-          # --------- NED Aruco Marker Position --------- # 
+          # --------- NED Relative and NED Drone Summation --------- # 
           NORTH_ARUCO = NORTH_REL + NORTH_DRONE
           EAST_ARUCO = EAST_REL + EAST_DRONE
           DOWN_ARUCO = DOWN_REL + DOWN_DRONE
@@ -662,7 +719,7 @@ while(cap.isOpened()):
           print(f"Aruco DOWN: {DOWN_ARUCO}")
 
           # --------- Visualise NED Aruco Marker Position --------- # 
-          # frame = visualiseArucoNEDMarkerPosition(DOWN_ARUCO, frame, resized_frame_width, resized_frame_height, rvec, tvec, camera_Matrix, distortion_Coeff)
+          frame = visualiseArucoNEDMarkerPosition(NORTH_ARUCO, EAST_ARUCO, DOWN_ARUCO, frame, resized_frame_width, resized_frame_height, rvec, tvec, camera_Matrix, distortion_Coeff)
 
     # --------- Write Video --------- # 
     out.write(frame)
