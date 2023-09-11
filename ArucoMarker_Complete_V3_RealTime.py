@@ -32,7 +32,7 @@ import numpy as np
 # UNCOMMENT FOR ALESSANDROS LAPTOP:
 # sys.path.append("/home/ppz/paparazzi/sw/ext/pprzlink/lib/v2.0/python/")    
 
-sys.path.append("~/paparazzi/sw/ext/pprzlink/lib/v2.0/python/")
+sys.path.append("/home/kevin/paparazzi/sw/ext/pprzlink/lib/v2.0/python/")
 
 from ivy.std_api import *
 import pprzlink.ivy
@@ -63,7 +63,7 @@ import pprzlink.message as message
 # UNCOMMENT FOR ALESSANDROS LAPTOP:
 # pathLoad = './CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w1920_h1080_HERELINKV2.xml'
 
-pathLoad = '~/IMAV2023/CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w1920_h1080_HERELINKV2.xml'
+pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w1920_h1080_HERELINKV2.xml'
 # pathLoad = '~/IMAV2023/CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w640_h480.xml'
 cv_file = cv2.FileStorage(pathLoad, cv2.FILE_STORAGE_READ)
 camera_Matrix = cv_file.getNode("cM").mat()
@@ -116,10 +116,12 @@ time_m        = []                    # Variable to save measured time
 
 wp_id         = 11                    # Waypoint ID
 
+rvec = np.zeros((1, 3))
+tvec = np.zeros((1, 3))
+
 NORTH_ARUCO   = 0
 EAST_ARUCO    = 0
 DOWN_ARUCO    = 0
-
 
 FILT_N        = 0
 FILT_E        = 0
@@ -621,26 +623,25 @@ ivy.subscribe(attitude_callback, message.PprzMessage("telemetry", "ROTORCRAFT_FP
 ivy.subscribe(NED_callback, message.PprzMessage("telemetry", "ROTORCRAFT_FP"))
 ivy.subscribe(ref_lat_long_alt_callback, message.PprzMessage("telemetry", "INS_REF"))
 
-#                                  # FUNCTION -> MOVE WAYPOINT #
-# # ------------------------------------------------------------------------------------------------------- #
-# def move_waypoint(ac_id, wp_id, aruco_lat, aruco_long, aruco_alt):
-#     msg = message.PprzMessage("ground", "MOVE_WAYPOINT")
-#     msg['ac_id'] = ac_id
-#     msg['wp_id'] = wp_id
-#     msg['lat'] = aruco_lat
-#     msg['long'] = aruco_long
-#     msg['alt'] = aruco_alt
-#     time.sleep(0.5)
-#     ivy.send(msg)
+                                 # FUNCTION -> MOVE WAYPOINT #
+# ------------------------------------------------------------------------------------------------------- #
+def move_waypoint(ac_id, wp_id, aruco_lat, aruco_long, aruco_alt):
+    msg = message.PprzMessage("ground", "MOVE_WAYPOINT")
+    msg['ac_id'] = ac_id
+    msg['wp_id'] = wp_id
+    msg['lat'] = aruco_lat
+    msg['long'] = aruco_long
+    msg['alt'] = aruco_alt
+    ivy.send(msg)
 
-# ac_id = input("What Aicraft ID is it being used: ")
+ac_id = input("What Aicraft ID is it being used: ")
 
                                               # VIDEO #
 # ------------------------------------------------------------------------------------------------------- #
 # --------- Load Video --------- #
 # cap = cv2.VideoCapture("rtsp://192.168.43.1:8554/fpv_stream") # Create a VideoCapture object (input is for herelink wifi connection)
 # cap = cv2.VideoCapture("rtsp://192.168.42.129:8554/fpv_stream") # Create a VideoCapture object (input is for herelink bluetooth tethering)
-path = '~/IMAV2023/Live_Videos/VALKENBURG_20_07_23_TEST7_SHORTENED.mp4'        # Define video path	
+path = '/home/kevin/IMAV2023/Live_Videos/VALKENBURG_20_07_23_TEST7_SHORTENED.mp4'        # Define video path	
 # path = '~/IMAV2023/Aruco_Marker_Data/06_07_2023/Videos/2023_0706_001.MP4'    # Define video path	
 
 cap = cv2.VideoCapture(path)                                                             # Create a VideoCapture object
@@ -656,7 +657,7 @@ frame_height = int(cap.get(4))
 
 # --------- Write Video Setup --------- #
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')                                                     # Define video codec (FOURCC code)
-out = cv2.VideoWriter('~/IMAV2023/Live_Videos/IMAV_09_09_23_TEST1_CompleteV1_1.mp4', 
+out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/IMAV_09_09_23_TEST1_CompleteV3.mp4', 
                       fourcc, FPS, (frame_width, frame_height))                                      # Create VideoWriter object 
 
 # UNCOMMENT FOR ALESSANDROS LAPTOP:
@@ -858,7 +859,7 @@ while(cap.isOpened()):
     ########################
     # Filtering
 
-    FILT_N += 2 / 15
+    FILT_N += 20 / 15
 
     #if DETECTION == 1:
     #  FILT_N = NORTH_ARUCO 
@@ -908,7 +909,7 @@ while(cap.isOpened()):
       frame = visualiseArucoGeodeticMarkerPosition(LAT_ARUCO, LONG_ARUCO, ALT_ARUCO, frame, resized_frame_width, resized_frame_height, rvec, tvec, camera_Matrix, distortion_Coeff)
 
       # --------- Move Waypoint --------- #
-      # move_waypoint(ac_id, wp_id, LAT_ARUCO, LONG_ARUCO, ALT_ARUCO)
+      move_waypoint(ac_id, wp_id, LAT_ARUCO, LONG_ARUCO, ALT_ARUCO)
     
     # --------- Write Video --------- # 
     out.write(frame)
