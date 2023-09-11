@@ -27,6 +27,7 @@ import pymap3d
 import cv2.aruco
 import threading
 import numpy as np
+import filterV1
 
 # --------- Ivybus Specific --------- # 
 # UNCOMMENT FOR ALESSANDROS LAPTOP:
@@ -859,7 +860,12 @@ while(cap.isOpened()):
     ########################
     # Filtering
 
-    FILT_N += 20 / 15
+    predict([FILT_N, FILT_E, FILT_D])
+    
+    #FILT_N += 2 / 15
+
+    correct([FILT_N, FILT_E, FILT_D], [NORTH_ARUCO, EAST_ARUCO, DOWN_ARUCO])
+    
 
     #if DETECTION == 1:
     #  FILT_N = NORTH_ARUCO 
