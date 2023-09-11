@@ -612,8 +612,8 @@ ivy.subscribe(attitude_callback, message.PprzMessage("telemetry", "ROTORCRAFT_FP
 ivy.subscribe(NED_callback, message.PprzMessage("telemetry", "ROTORCRAFT_FP"))
 ivy.subscribe(ref_lat_long_alt_callback, message.PprzMessage("telemetry", "INS_REF"))
 
-#                                  # FUNCTION -> MOVE WAYPOINT #
-# # ------------------------------------------------------------------------------------------------------- #
+                                 # FUNCTION -> MOVE WAYPOINT #
+# ------------------------------------------------------------------------------------------------------- #
 # def move_waypoint(ac_id, wp_id, aruco_lat, aruco_long, aruco_alt):
 #     msg = message.PprzMessage("ground", "MOVE_WAYPOINT")
 #     msg['ac_id'] = ac_id
@@ -621,7 +621,6 @@ ivy.subscribe(ref_lat_long_alt_callback, message.PprzMessage("telemetry", "INS_R
 #     msg['lat'] = aruco_lat
 #     msg['long'] = aruco_long
 #     msg['alt'] = aruco_alt
-#     time.sleep(0.5)
 #     ivy.send(msg)
 
 # ac_id = input("What Aicraft ID is it being used: ")
@@ -636,6 +635,7 @@ path = '~/IMAV2023/Live_Videos/VALKENBURG_20_07_23_TEST7_SHORTENED.mp4'        #
 
 cap = cv2.VideoCapture(path)                                                             # Create a VideoCapture object
 FPS = cap.get(cv2.CAP_PROP_FPS)                                                          # Read FPS from input video
+print(f"FPS: {FPS}")
 
 # --------- Functioning? --------- #
 if (cap.isOpened()== False):                                                             # Check if camera opened successfully
@@ -647,11 +647,11 @@ frame_height = int(cap.get(4))
 
 # --------- Write Video Setup --------- #
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')                                                     # Define video codec (FOURCC code)
-out = cv2.VideoWriter('~/IMAV2023/Live_Videos/IMAV_09_09_23_TEST1_CompleteV1_1.mp4', 
-                      fourcc, FPS, (frame_width, frame_height))                                      # Create VideoWriter object 
+out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/IMAV_09_09_23_TEST4_CompleteV2.mp4', 
+                      fourcc, FPS, (1152, 648))                                      # Create VideoWriter object 
 
 # UNCOMMENT FOR ALESSANDROS LAPTOP:
-# out = cv2.VideoWriter('./Live_Videos/IMAV_09_09_23_TEST1_CompleteV1_1.mp4', 
+# out = cv2.VideoWriter('./Live_Videos/IMAV_09_09_23_TEST1_CompleteV2.mp4', 
 #                       fourcc, FPS, (frame_width, frame_height))                                      # Create VideoWriter object 
 
 
@@ -775,6 +775,10 @@ while(cap.isOpened()):
       rvec, tvec, _ = cv2.aruco.estimatePoseSingleMarkers(markerCorners, MARKER_SIZE, camera_Matrix, distortion_Coeff)
       (rvec - tvec).any()    # Remove Numpy value array error
 
+      if rvec is None:
+        print(markerCorners)
+        continue
+
       # --------- Save and Print X, Y, and Z --------- # 
       print(f"-------- ITERATION: {C_STEP} --------") 
       X_ARUCO = tvec[0][0][0]
@@ -885,7 +889,7 @@ while(cap.isOpened()):
             # --------- Move Waypoint --------- #
             # move_waypoint(ac_id, wp_id, LAT_ARUCO, LONG_ARUCO, ALT_ARUCO)
     
-    # --------- Write Video --------- # 
+    # --------- Write Video --------- # home
     out.write(frame)
     
     # --------- Display Output Frame --------- # 
