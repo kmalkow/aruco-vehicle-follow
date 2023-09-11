@@ -73,7 +73,7 @@ cv_file.release()
 
                                         # VARIABLE DEFINITION #
 # ------------------------------------------------------------------------------------------------------- #
-MARKER_SIZE = 1.107                   # Size of Aruco marker in [m] -> 1.107 [m]||0.35 [m]
+MARKER_SIZE = 1                       # Size of Aruco marker in [m] -> 1.107 [m]||0.35 [m]
 
 PITCH_values = None                   # Global variable to store Ivybus received pitch values
 ROLL_values = None                    # Global variable to store Ivybus received roll values
