@@ -54,15 +54,32 @@ x = range(0, n)
 tck1 = interpolate.splrep(x, y[:,0], s=0.001, k=3)
 tck2 = interpolate.splrep(x, y[:,1], s=0.001, k=3)
 
+# 10000 = 4m/s
 x_new = np.linspace(min(x), max(x), 10000)
 y_fitx = interpolate.BSpline(*tck1)(x_new)
 y_fity = interpolate.BSpline(*tck2)(x_new)
 
-#print(y[0,:])
+fit = np.vstack((y_fitx, y_fity)).T
+
+#print(fit)
+
+start = np.asarray([[-113.6], [67]])
+#start = np.asarray([[-113.6], [87]])
+
+print(start)
+
+print(fit[:, 0] - start[0]**2)
+
+distances = np.sqrt((fit[:, 0] - start[0])**2 + (fit[:, 1] - start[1])**2)
+closest_index = np.argmin(distances)
+
+print(closest_index)
+
 
 plt.title("BSpline curve fitting")
-plt.plot(y[:,0], y[:,1], 'ro', label="original")
-plt.plot(y_fitx, y_fity, '-c', label="B-spline")
+plt.plot(y[:,1], y[:,0], 'ro', label="original")
+plt.plot(y_fity[closest_index:], y_fitx[closest_index:], '-c', label="B-spline")
+plt.plot(start[1], start[0], 'X', label="Start")
 plt.legend(loc='best', fancybox=True, shadow=True)
 plt.axis('equal')
 plt.grid()
