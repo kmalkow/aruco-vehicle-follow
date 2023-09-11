@@ -27,7 +27,7 @@ import pymap3d
 import cv2.aruco
 import threading
 import numpy as np
-import filterV1
+from filterV1 import predict, correct
 
 # --------- Ivybus Specific --------- # 
 # UNCOMMENT FOR ALESSANDROS LAPTOP:
@@ -117,8 +117,8 @@ time_m        = []                    # Variable to save measured time
 
 wp_id         = 11                    # Waypoint ID
 
-rvec = np.zeros((1, 3))
-tvec = np.zeros((1, 3))
+rvec = np.zeros([1, 3])
+tvec = np.zeros([1, 3])
 
 NORTH_ARUCO   = 0
 EAST_ARUCO    = 0
@@ -642,7 +642,7 @@ ac_id = input("What Aicraft ID is it being used: ")
 # --------- Load Video --------- #
 # cap = cv2.VideoCapture("rtsp://192.168.43.1:8554/fpv_stream") # Create a VideoCapture object (input is for herelink wifi connection)
 # cap = cv2.VideoCapture("rtsp://192.168.42.129:8554/fpv_stream") # Create a VideoCapture object (input is for herelink bluetooth tethering)
-path = '/home/kevin/IMAV2023/Live_Videos/VALKENBURG_20_07_23_TEST7_SHORTENED.mp4'        # Define video path	
+path = '/home/kevin/IMAV2023/Live_Videos/VALKENBURG_20_07_23_TEST7.mp4'        # Define video path	
 # path = '~/IMAV2023/Aruco_Marker_Data/06_07_2023/Videos/2023_0706_001.MP4'    # Define video path	
 
 cap = cv2.VideoCapture(path)                                                             # Create a VideoCapture object
@@ -860,17 +860,27 @@ while(cap.isOpened()):
     ########################
     # Filtering
 
-    predict([FILT_N, FILT_E, FILT_D])
-    
-    #FILT_N += 2 / 15
+    # FILT_N += 20/15
+    NED_PREDICT = predict([FILT_N, FILT_E, FILT_D])
+    print(NED_PREDICT)
+    FILT_N = NED_PREDICT[0]
+    FILT_E = NED_PREDICT[1]
+
+    FILT_N = float(FILT_N)
+    FILT_E = float(FILT_E)
+
+    print(FILT_N)
+    print(FILT_E)
 
     correct([FILT_N, FILT_E, FILT_D], [NORTH_ARUCO, EAST_ARUCO, DOWN_ARUCO])
     
 
-    #if DETECTION == 1:
+    # if DETECTION == 1:
     #  FILT_N = NORTH_ARUCO 
     #  FILT_E = EAST_ARUCO 
     #  FILT_D = DOWN_ARUCO 
+
+    FILT_D = DOWN_ARUCO
 
     # --------- Convert To LAT, LONG, and ALT Aruco Marker Position and Move Waypoint --------- #
     if LAT_0 is not None: 
@@ -902,19 +912,21 @@ while(cap.isOpened()):
 
       # --------- Save and Print Aruco Marker NORTH, EAST, and DOWN --------- # 
       LAT_ARUCO_m.append(LAT_ARUCO)            # Save measured Aruco Marker LATITUDE
-      print(f"Aruco Latitude: {LAT_ARUCO}")
+      # print(f"Aruco Latitude: {LAT_ARUCO}")
 
       LONG_ARUCO_m.append(LONG_ARUCO)          # Save measured Aruco Marker LONGITUDE
-      print(f"Aruco Longitude: {LONG_ARUCO}")
+      # print(f"Aruco Longitude: {LONG_ARUCO}")
 
       ALT_ARUCO_m.append(ALT_ARUCO)            # Save measured Aruco Marker ALTITUDE
-      print(f"Aruco Altitude: {ALT_ARUCO}")
+      # print(f"Aruco Altitude: {ALT_ARUCO}")
       print("-------------------------------") 
 
       # --------- Visualise NED Aruco Marker Position --------- # 
-      frame = visualiseArucoGeodeticMarkerPosition(LAT_ARUCO, LONG_ARUCO, ALT_ARUCO, frame, resized_frame_width, resized_frame_height, rvec, tvec, camera_Matrix, distortion_Coeff)
+      # frame = visualiseArucoGeodeticMarkerPosition(LAT_ARUCO, LONG_ARUCO, ALT_ARUCO, frame, resized_frame_width, resized_frame_height, rvec, tvec, camera_Matrix, distortion_Coeff)
 
       # --------- Move Waypoint --------- #
+      print(LAT_ARUCO)
+      print(LONG_ARUCO)
       move_waypoint(ac_id, wp_id, LAT_ARUCO, LONG_ARUCO, ALT_ARUCO)
     
     # --------- Write Video --------- # 

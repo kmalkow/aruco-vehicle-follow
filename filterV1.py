@@ -73,7 +73,7 @@ def predict(X):
     #print(Z)
 
 
-    x = np.asarray([[y_fitx[nr]],[y_fity[nr]]])
+    x = np.asarray([[y_fity[nr]],[y_fitx[nr]]])
     return x
 
 
