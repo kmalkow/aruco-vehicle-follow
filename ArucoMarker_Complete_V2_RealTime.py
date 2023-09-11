@@ -778,6 +778,10 @@ while(cap.isOpened()):
       if rvec is None:
         print(markerCorners)
         continue
+      
+      if tvec is None:
+        print(markerCorners)
+        continue
 
       # --------- Save and Print X, Y, and Z --------- # 
       print(f"-------- ITERATION: {C_STEP} --------") 

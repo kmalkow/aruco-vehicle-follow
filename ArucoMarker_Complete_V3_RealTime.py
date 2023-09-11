@@ -641,11 +641,11 @@ ac_id = input("What Aicraft ID is it being used: ")
 # ------------------------------------------------------------------------------------------------------- #
 # --------- Load Video --------- #
 # cap = cv2.VideoCapture("rtsp://192.168.43.1:8554/fpv_stream") # Create a VideoCapture object (input is for herelink wifi connection)
-# cap = cv2.VideoCapture("rtsp://192.168.42.129:8554/fpv_stream") # Create a VideoCapture object (input is for herelink bluetooth tethering)
-path = '/home/kevin/IMAV2023/Live_Videos/VALKENBURG_20_07_23_TEST7.mp4'        # Define video path	
+cap = cv2.VideoCapture("rtsp://192.168.42.129:8554/fpv_stream") # Create a VideoCapture object (input is for herelink bluetooth tethering)
+# path = '/home/kevin/IMAV2023/Live_Videos/VALKENBURG_20_07_23_TEST7.mp4'        # Define video path	
 # path = '~/IMAV2023/Aruco_Marker_Data/06_07_2023/Videos/2023_0706_001.MP4'    # Define video path	
 
-cap = cv2.VideoCapture(path)                                                             # Create a VideoCapture object
+# cap = cv2.VideoCapture(path)                                                             # Create a VideoCapture object
 FPS = cap.get(cv2.CAP_PROP_FPS)                                                          # Read FPS from input video
 
 # --------- Functioning? --------- #
@@ -658,12 +658,12 @@ frame_height = int(cap.get(4))
 
 # --------- Write Video Setup --------- #
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')                                                     # Define video codec (FOURCC code)
-out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/IMAV_09_09_23_TEST1_CompleteV3.mp4', 
-                      fourcc, FPS, (frame_width, frame_height))                                      # Create VideoWriter object 
+out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/IMAV_11_09_23_TEST1_CompleteV3.mp4', 
+                      fourcc, FPS, (1152, 648))                                      # Create VideoWriter object 
 
 # UNCOMMENT FOR ALESSANDROS LAPTOP:
-# out = cv2.VideoWriter('./Live_Videos/IMAV_09_09_23_TEST1_CompleteV1_1.mp4', 
-#                       fourcc, FPS, (frame_width, frame_height))                                      # Create VideoWriter object 
+# out = cv2.VideoWriter('./Live_Videos/IMAV_11_09_23_TEST1_CompleteV3.mp4', 
+#                       fourcc, FPS, (1152, 648))                                      # Create VideoWriter object 
 
 
                                     # ARUCO MARKER DETECTION SETUP #
@@ -787,6 +787,14 @@ while(cap.isOpened()):
       # --------- Aruco Marker Pose Estimation --------- # 
       rvec, tvec, _ = cv2.aruco.estimatePoseSingleMarkers(markerCorners, MARKER_SIZE, camera_Matrix, distortion_Coeff)
       (rvec - tvec).any()    # Remove Numpy value array error
+
+      if rvec is None:
+        print(markerCorners)
+        continue
+      
+      if tvec is None:
+        print(markerCorners)
+        continue
 
       # --------- Save and Print X, Y, and Z --------- # 
       print(f"-------- ITERATION: {C_STEP} --------") 
@@ -912,21 +920,19 @@ while(cap.isOpened()):
 
       # --------- Save and Print Aruco Marker NORTH, EAST, and DOWN --------- # 
       LAT_ARUCO_m.append(LAT_ARUCO)            # Save measured Aruco Marker LATITUDE
-      # print(f"Aruco Latitude: {LAT_ARUCO}")
+      print(f"Aruco Latitude: {LAT_ARUCO}")
 
       LONG_ARUCO_m.append(LONG_ARUCO)          # Save measured Aruco Marker LONGITUDE
-      # print(f"Aruco Longitude: {LONG_ARUCO}")
+      print(f"Aruco Longitude: {LONG_ARUCO}")
 
       ALT_ARUCO_m.append(ALT_ARUCO)            # Save measured Aruco Marker ALTITUDE
-      # print(f"Aruco Altitude: {ALT_ARUCO}")
+      print(f"Aruco Altitude: {ALT_ARUCO}")
       print("-------------------------------") 
 
       # --------- Visualise NED Aruco Marker Position --------- # 
       # frame = visualiseArucoGeodeticMarkerPosition(LAT_ARUCO, LONG_ARUCO, ALT_ARUCO, frame, resized_frame_width, resized_frame_height, rvec, tvec, camera_Matrix, distortion_Coeff)
 
       # --------- Move Waypoint --------- #
-      print(LAT_ARUCO)
-      print(LONG_ARUCO)
       move_waypoint(ac_id, wp_id, LAT_ARUCO, LONG_ARUCO, ALT_ARUCO)
     
     # --------- Write Video --------- # 
@@ -1019,78 +1025,77 @@ while(cap.isOpened()):
 #     writer=csv.writer(csvfile, delimiter=',')
 #     writer.writerows(zip(ALT_0_m, time_m))
 
-# UNCOMMENT FOR ALESSANDROS LAPTOP:
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_09_09_23_TEST1_ArucoX_V1_1', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(X_ARUCO_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_11_09_23_TEST1_ArucoX_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(X_ARUCO_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_09_09_23_TEST1_ArucoY_V1_1', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(Y_ARUCO_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_11_09_23_TEST1_ArucoY_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(Y_ARUCO_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_09_09_23_TEST1_ArucoZ_V1_1', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(Z_ARUCO_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_11_09_23_TEST1_ArucoZ_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(Z_ARUCO_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_09_09_23_TEST1_ArucoNORTH_V1_1', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(NORTH_ARUCO_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_11_09_23_TEST1_ArucoNORTH_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(NORTH_ARUCO_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_09_09_23_TEST1_ArucoEAST_V1_1', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(EAST_ARUCO_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_11_09_23_TEST1_ArucoEAST_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(EAST_ARUCO_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_09_09_23_TEST1_ArucoDOWN_V1_1', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(DOWN_ARUCO_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_11_09_23_TEST1_ArucoDOWN_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(DOWN_ARUCO_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_09_09_23_TEST1_ArucoLAT_V1_1', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(LAT_ARUCO_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_11_09_23_TEST1_ArucoLAT_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(LAT_ARUCO_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_09_09_23_TEST1_ArucoLONG_V1_1', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(LONG_ARUCO_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_11_09_23_TEST1_ArucoLONG_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(LONG_ARUCO_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_09_09_23_TEST1_ArucoALT_V1_1', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(ALT_ARUCO_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_11_09_23_TEST1_ArucoALT_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(ALT_ARUCO_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_09_09_23_TEST1_DronePitch_V1_1', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(PITCH_DRONE_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_11_09_23_TEST1_DronePitch_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(PITCH_DRONE_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_09_09_23_TEST1_DroneRoll_V1_1', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(ROLL_DRONE_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_11_09_23_TEST1_DroneRoll_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(ROLL_DRONE_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_09_09_23_TEST1_DroneYaw_V1_1', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(YAW_DRONE_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_11_09_23_TEST1_DroneYaw_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(YAW_DRONE_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_09_09_23_TEST1_DroneNORTH_V1_1', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(NORTH_DRONE_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_11_09_23_TEST1_DroneNORTH_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(NORTH_DRONE_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_09_09_23_TEST1_DroneEAST_V1_1', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(EAST_DRONE_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_11_09_23_TEST1_DroneEAST_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(EAST_DRONE_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_09_09_23_TEST1_DroneDOWN_V1_1', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(DOWN_DRONE_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_11_09_23_TEST1_DroneDOWN_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(DOWN_DRONE_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_09_09_23_TEST1_DroneLAT_V1_1', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(LAT_0_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_11_09_23_TEST1_DroneLAT_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(LAT_0_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_09_09_23_TEST1_DroneLONG_V1_1', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(LONG_0_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_11_09_23_TEST1_DroneLONG_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(LONG_0_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_09_09_23_TEST1_DroneALT_V1_1', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(ALT_0_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_11_09_23_TEST1_DroneALT_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(ALT_0_m, time_m))
 
 # --------- Indoor Tests --------- # 
 # with open('~/IMAV2023/Measured_Variables/Indoor_Tests/TEST1_X_V1', 'w') as csvfile:

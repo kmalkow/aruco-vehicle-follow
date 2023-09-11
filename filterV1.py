@@ -59,7 +59,7 @@ y_fitx = interpolate.BSpline(*tck1)(x_new)
 y_fity = interpolate.BSpline(*tck2)(x_new)
 
 
-nr = 0
+nr = 4015
 
 def predict(X):
     global nr
