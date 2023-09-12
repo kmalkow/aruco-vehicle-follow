@@ -60,6 +60,14 @@ cv_file.release()
 # ------------------------------------------------------------------------------------------------------- #
 MARKER_SIZE = 1.107                   # Size of Aruco marker in [m] -> 1.107 [m]||0.35 [m]
 
+scale_percent_720p = 66.7
+scaling_factor_X_720p = -0.305            # Scaling factor to account for reduced frame size in Aruco marker X measurements
+scaling_factor_Y_720p = -0.2519           # Scaling factor to account for reduced frame size in Aruco marker Y measurements
+scaling_factor_Z_720p = -0.101            # Scaling factor to account for reduced frame size in Aruco marker Z measurements
+
+# rvec = np.zeros([1, 3])
+# tvec = np.zeros([1, 3])
+
                                 # FUNCTION -> VISUALISE LEGEND #
 # ------------------------------------------------------------------------------------------------------- #
 def timeout(timeout_duration=3):
@@ -115,8 +123,8 @@ print("STEP 2 -> Started videoWriter object")
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')                                                     # Define video codec (FOURCC code)
 out = cv2.VideoWriter('./Live_Videos/TEST0_CompleteV4.mp4', 
                       fourcc, FPS, (frame_width, frame_height))                                      # Create VideoWriter object 
-
 print("STEP 2 -> Finished videoWrite object")
+
                                     # ARUCO MARKER DETECTION SETUP #
 # ------------------------------------------------------------------------------------------------------- #
 # --------- Load Specific ID=700 Dictionary --------- # 
@@ -157,7 +165,10 @@ C_STEP = 0
 # ------------------------------------------------------------------------------------------------------- #
 while(cap.isOpened()): 
 
-  ret, frame = timeout()  
+  # ret, frame = timeout() 
+  print("STEP 5 -> Start receiving frame")
+  ret, frame = cap.read()
+  print("STEP 5 -> Grabbed frame")
 
   if ret == True: # If frame read correctly            
     print("STEP 6 -> ret = True")
@@ -194,12 +205,15 @@ while(cap.isOpened()):
       # --------- Save and Print X, Y, and Z --------- # 
       # print(f"-------- ITERATION: {C_STEP} --------") 
       X_ARUCO = tvec[0][0][0]
+      # X_ARUCO = X_ARUCO*((scale_percent_720p/100) + scaling_factor_X_720p)
       print(f"Aruco X: {X_ARUCO}")
 
       Y_ARUCO = tvec[0][0][1]
+      # Y_ARUCO = Y_ARUCO*((scale_percent_720p/100) + scaling_factor_Y_720p)      
       print(f"Aruco Y: {Y_ARUCO}")
 
       Z_ARUCO = tvec[0][0][2]
+      # Z_ARUCO = Z_ARUCO*((scale_percent_720p/100) + scaling_factor_Z_720p)
       print(f"Aruco Z: {Z_ARUCO}")
 
     # --------- Write Video --------- # 
