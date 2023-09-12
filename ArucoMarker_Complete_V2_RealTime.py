@@ -32,7 +32,7 @@ import numpy as np
 # UNCOMMENT FOR ALESSANDROS LAPTOP:
 # sys.path.append("/home/ppz/paparazzi/sw/ext/pprzlink/lib/v2.0/python/")    
 
-sys.path.append("~/paparazzi/sw/ext/pprzlink/lib/v2.0/python/")
+sys.path.append("/home/kevin/paparazzi/sw/ext/pprzlink/lib/v2.0/python/")
 
 from ivy.std_api import *
 import pprzlink.ivy
@@ -63,7 +63,7 @@ import pprzlink.message as message
 # UNCOMMENT FOR ALESSANDROS LAPTOP:
 # pathLoad = './CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w1920_h1080_HERELINKV2.xml'
 
-pathLoad = '~/IMAV2023/CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w1920_h1080_HERELINKV2.xml'
+pathLoad = './CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w1920_h1080_HERELINKV2.xml'
 # pathLoad = '~/IMAV2023/CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w640_h480.xml'
 cv_file = cv2.FileStorage(pathLoad, cv2.FILE_STORAGE_READ)
 camera_Matrix = cv_file.getNode("cM").mat()
@@ -630,7 +630,7 @@ ivy.subscribe(ref_lat_long_alt_callback, message.PprzMessage("telemetry", "INS_R
 # --------- Load Video --------- #
 # cap = cv2.VideoCapture("rtsp://192.168.43.1:8554/fpv_stream") # Create a VideoCapture object (input is for herelink wifi connection)
 # cap = cv2.VideoCapture("rtsp://192.168.42.129:8554/fpv_stream") # Create a VideoCapture object (input is for herelink bluetooth tethering)
-path = '~/IMAV2023/Live_Videos/VALKENBURG_20_07_23_TEST7_SHORTENED.mp4'        # Define video path	
+path = './Live_Videos/VALKENBURG_20_07_23_TEST7_SHORTENED.mp4'        # Define video path	
 # path = '~/IMAV2023/Aruco_Marker_Data/06_07_2023/Videos/2023_0706_001.MP4'    # Define video path	
 
 cap = cv2.VideoCapture(path)                                                             # Create a VideoCapture object
@@ -647,8 +647,8 @@ frame_height = int(cap.get(4))
 
 # --------- Write Video Setup --------- #
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')                                                     # Define video codec (FOURCC code)
-out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/IMAV_09_09_23_TEST4_CompleteV2.mp4', 
-                      fourcc, FPS, (1152, 648))                                      # Create VideoWriter object 
+# out = cv2.VideoWriter('./IMAV2023/Live_Videos/IMAV_09_09_23_TEST4_CompleteV2.mp4', 
+#                       fourcc, FPS, (1152, 648))                                      # Create VideoWriter object 
 
 # UNCOMMENT FOR ALESSANDROS LAPTOP:
 # out = cv2.VideoWriter('./Live_Videos/IMAV_09_09_23_TEST1_CompleteV2.mp4', 
@@ -713,12 +713,12 @@ while(cap.isOpened()):
 
   if ret == True: # If frame read correctly          
     # --------- Resize Frame (Noise Reduction) --------- # 
-    scale_percent = 60 # Percent of original size -> At 60%, dim = (1152, 648), min scale_percent = 50%
-    resized_frame_width = int(frame_width * scale_percent / 100)
-    resized_frame_height = int(frame_height * scale_percent / 100)
-    dim = (resized_frame_width, resized_frame_height)
+    # scale_percent = 60 # Percent of original size -> At 60%, dim = (1152, 648), min scale_percent = 50%
+    resized_frame_width = frame_width #int(frame_width * scale_percent / 100)
+    resized_frame_height = frame_height #int(frame_height * scale_percent / 100)
+    # dim = (resized_frame_width, resized_frame_height)
   
-    frame = cv2.resize(frame, dim)
+    # frame = cv2.resize(frame, dim)
     
     # --------- Convert to Grayscale --------- # 
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -786,17 +786,17 @@ while(cap.isOpened()):
       # --------- Save and Print X, Y, and Z --------- # 
       print(f"-------- ITERATION: {C_STEP} --------") 
       X_ARUCO = tvec[0][0][0]
-      X_ARUCO = X_ARUCO*((scale_percent/100) + scaling_factor_X)
+      # X_ARUCO = X_ARUCO*((scale_percent/100) + scaling_factor_X)
       X_ARUCO_m.append(X_ARUCO)          # Save measured X
       print(f"Aruco X: {X_ARUCO}")
 
       Y_ARUCO = tvec[0][0][1]
-      Y_ARUCO = Y_ARUCO*((scale_percent/100) + scaling_factor_Y)
+      # Y_ARUCO = Y_ARUCO*((scale_percent/100) + scaling_factor_Y)
       Y_ARUCO_m.append(Y_ARUCO)          # Save measured Y
       print(f"Aruco Y: {Y_ARUCO}")
 
       Z_ARUCO = tvec[0][0][2]
-      Z_ARUCO = Z_ARUCO*((scale_percent/100) + scaling_factor_Z)
+      # Z_ARUCO = Z_ARUCO*((scale_percent/100) + scaling_factor_Z)
       Z_ARUCO_m.append(Z_ARUCO)          # Save measured Z
       print(f"Aruco Z: {Z_ARUCO}")
 
@@ -894,7 +894,7 @@ while(cap.isOpened()):
             # move_waypoint(ac_id, wp_id, LAT_ARUCO, LONG_ARUCO, ALT_ARUCO)
     
     # --------- Write Video --------- # home
-    out.write(frame)
+    # out.write(frame)
     
     # --------- Display Output Frame --------- # 
     cv2.imshow('Frame', frame)
@@ -1097,7 +1097,7 @@ while(cap.isOpened()):
 # ------------------------------------------------------------------------------------------------------- #
 # --------- Release/Stop Objects --------- # 
 cap.release()
-out.release()
+# out.release()
 ivy.shutdown()
 
 # --------- Close Frames --------- # 
