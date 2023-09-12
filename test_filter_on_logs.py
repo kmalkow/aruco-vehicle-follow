@@ -2,12 +2,12 @@ from scipy import interpolate
 import matplotlib.pyplot as plt
 import numpy as np
 
-from filterV1 import init, predict, correct
+from filterV1 import init, predict, update
 
 # READ LOGFILES
 
-f_N = open("Measured_Variables/Outdoor_Tests/IMAV_09_09_23_TEST1_ArucoNORTH_CompleteV2")
-f_E = open("Measured_Variables/Outdoor_Tests/IMAV_09_09_23_TEST1_ArucoEAST_CompleteV2")
+f_N = open("./Measured_Variables/Outdoor_Tests/IMAV_11_09_23_TEST1_ArucoNORTH_V3")
+f_E = open("./Measured_Variables/Outdoor_Tests/IMAV_11_09_23_TEST1_ArucoEAST_V3")
 
 N = np.loadtxt(f_N, delimiter=",", dtype=str).astype(float)
 E = np.loadtxt(f_E, delimiter=",", dtype=str).astype(float)
@@ -30,7 +30,7 @@ pf_VE = []
 
 
 # init
-x = init( [N[0,0], E[0,0], 25] );
+init( [N[0,0], E[0,0], 25] )
 
 i = 0
 for t in np.nditer(tsim):
@@ -42,7 +42,7 @@ for t in np.nditer(tsim):
         # correct
         Z = [N[i,0], E[i,0], 25]
         #print('Z', Z)
-        x = correct( Z )
+        x = update( Z )
         #print('correct x=', x)
 
         while tM[i] < t:

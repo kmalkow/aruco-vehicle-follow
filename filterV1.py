@@ -163,9 +163,6 @@ def init( X0 ):
     
     print('X0 set to:', x)
 
-    return x
-
-
 def predict(dt):
     global x
     global P
@@ -187,7 +184,7 @@ def predict(dt):
 
 
 
-def correct(Z):
+def update(Z):
     global x
     global H
     global R

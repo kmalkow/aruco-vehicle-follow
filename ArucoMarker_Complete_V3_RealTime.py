@@ -27,7 +27,7 @@ import pymap3d
 import cv2.aruco
 import threading
 import numpy as np
-from filterV1 import predict, correct
+from filterV1 import init, predict, update, route
 
 # --------- Ivybus Specific --------- # 
 # UNCOMMENT FOR ALESSANDROS LAPTOP:
@@ -132,6 +132,8 @@ DOWN_ARUCO    = 0
 FILT_N        = 0
 FILT_E        = 0
 FILT_D        = 0
+
+IS_FILT_INIT = False
 
                                   # FUNCTIONS -> IVYBUS MESSAGES #
 # ------------------------------------------------------------------------------------------------------- #
@@ -655,6 +657,9 @@ print("Finished videoCapture object")
 
 # cap = cv2.VideoCapture(path)                                                             # Create a VideoCapture object
 FPS = cap.get(cv2.CAP_PROP_FPS)                                                          # Read FPS from input video
+if FPS == 0:
+    print("Error: FPS is 0")
+    quit()
 
 # --------- Functioning? --------- #
 if (cap.isOpened()== False):                                                             # Check if camera opened successfully
@@ -872,42 +877,50 @@ while(cap.isOpened()):
 
           # --------- Visualise NED Aruco Marker Position --------- # 
           frame = visualiseArucoNEDMarkerPosition(NORTH_ARUCO, EAST_ARUCO, DOWN_ARUCO, frame, resized_frame_width, resized_frame_height, rvec, tvec, camera_Matrix, distortion_Coeff)
-
+          
           DETECTION = 1
 
     ########################
     # Filtering
 
-    # FILT_N += 20/15
-    
-    NED_PREDICT = predict([FILT_N, FILT_E, FILT_D])
-    FILT_N = NED_PREDICT[0]
-    FILT_E = NED_PREDICT[1]
-
-    FILT_N = float(FILT_N)
-    FILT_E = float(FILT_E)
-    FILT_D = DOWN_ARUCO
-
-    FILT_N_PRED_m.append(FILT_N)
-    FILT_E_PRED_m.append(FILT_E)
-
-    print(FILT_N)
-    print(FILT_E)  
-
-    if DETECTION == 1:
-      NED_EST = correct([FILT_N, FILT_E, FILT_D], [NORTH_ARUCO, EAST_ARUCO, DOWN_ARUCO])
-      FILT_N = NED_EST[0]
-      FILT_E = NED_EST[1]
-      FILT_D = DOWN_ARUCO 
+    if IS_FILT_INIT:
+      # FILT_N += 20/15
+      
+      dt = 1/FPS
+      
+      NED_PREDICT = predict(dt)
+      FILT_N = NED_PREDICT[0]
+      FILT_E = NED_PREDICT[1]
 
       FILT_N = float(FILT_N)
       FILT_E = float(FILT_E)
-      
-      FILT_N_EST_m.append(FILT_N)
-      FILT_E_EST_m.append(FILT_E)
+      FILT_D = DOWN_ARUCO
+
+      FILT_N_PRED_m.append(FILT_N)
+      FILT_E_PRED_m.append(FILT_E)
 
       print(FILT_N)
-      print(FILT_E)
+      print(FILT_E)  
+
+    if DETECTION == 1:
+      if not IS_FILT_INIT:
+        # --------- Initialise Kalman filter --------- # 
+        init([NORTH_ARUCO, EAST_DRONE, DOWN_ARUCO])
+        IS_FILT_INIT = True
+      else:
+        NED_EST = update([NORTH_ARUCO, EAST_ARUCO, DOWN_ARUCO])
+        FILT_N = NED_EST[0]
+        FILT_E = NED_EST[1]
+        FILT_D = DOWN_ARUCO 
+
+        FILT_N = float(FILT_N)
+        FILT_E = float(FILT_E)
+        
+        FILT_N_EST_m.append(FILT_N)
+        FILT_E_EST_m.append(FILT_E)
+
+        print(FILT_N)
+        print(FILT_E)
 
     # FILT_N = NORTH_ARUCO
     # FILT_E = EAST_ARUCO
