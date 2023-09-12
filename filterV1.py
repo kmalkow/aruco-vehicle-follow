@@ -6,7 +6,7 @@ import numpy as np
 #############################################################################
 ## Smooth track
 
-y = np.asarray([-31.9311054713794,
+racetrack_at_competition = np.asarray([-31.9311054713794,
 271.783338767474,
 -32.0712612077143,
 354.330707476033,
@@ -49,9 +49,19 @@ y = np.asarray([-31.9311054713794,
 -31.9311054713794,
 271.783338767474])
 
-#y = np.asarray([
-#
-#])
+test_field_track = np.asarray([-81.9,
+133.7,
+-43.4,
+80.7,
+27.7,
+116.7,
+-28.7,
+183.9,
+-141.7,
+199.9])
+
+y = racetrack_at_competition
+y = test_field_track
 
 n = len(y)
 y = y.reshape((int(n/2),2))
