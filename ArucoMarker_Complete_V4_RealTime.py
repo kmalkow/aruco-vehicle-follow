@@ -23,10 +23,11 @@
 # import csv
 # import sys
 import cv2
+import signal
 # import pymap3d
 import cv2.aruco
 # import threading
-# import numpy as np
+import numpy as np
 
                                         # STREAM WORKING CHECK #
 # # ------------------------------------------------------------------------------------------------------- #
@@ -62,7 +63,10 @@ MARKER_SIZE = 1.107                   # Size of Aruco marker in [m] -> 1.107 [m]
                                               # VIDEO #
 # ------------------------------------------------------------------------------------------------------- #
 # --------- Load Video --------- #
-cap = cv2.VideoCapture("rtsp://192.168.42.129:8554/fpv_stream") # Create a VideoCapture object (input is for herelink bluetooth tethering)
+print("STEP 1 -> Starting videoCapture object")
+# cap = cv2.VideoCapture("rtsp://192.168.42.129:8554/fpv_stream") # Create a VideoCapture object (input is for herelink bluetooth tethering)
+cap = cv2.VideoCapture("rtsp://192.168.43.1:8554/fpv_stream") # Create a VideoCapture object (input is for herelink wifi connection)
+print("STEP 1 -> Finished videoCapture object")
 FPS = cap.get(cv2.CAP_PROP_FPS)                                                          # Read FPS from input video
 print(FPS)
 
@@ -78,19 +82,22 @@ print(frame_width)
 print(frame_height)
 
 # # --------- Write Video Setup --------- #
+print("STEP 2 -> Started videoWriter object")
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')                                                     # Define video codec (FOURCC code)
 out = cv2.VideoWriter('./Live_Videos/TEST0_CompleteV4.mp4', 
                       fourcc, FPS, (frame_width, frame_height))                                      # Create VideoWriter object 
 
+print("STEP 2 -> Finished videoWrite object")
                                     # ARUCO MARKER DETECTION SETUP #
 # ------------------------------------------------------------------------------------------------------- #
 # --------- Load Specific ID=700 Dictionary --------- # 
 baseDictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_5X5_1000)
 arucoDictionary = cv2.aruco.Dictionary(baseDictionary.bytesList[700], 5, 6)
 
+print("STEP 3 -> Start aruco parameters")
 # --------- Set Detection Parameters --------- # 
 arucoParameters =  cv2.aruco.DetectorParameters()
-
+print("STEP 3 -> Finished aruco parameters")
 # STEP 1: Adaptive thresholding parameters
 arucoParameters.adaptiveThreshWinSizeMin  = 3
 arucoParameters.adaptiveThreshWinSizeMax  = 12
@@ -110,7 +117,9 @@ arucoParameters.cornerRefinementWinSize       = 7
 arucoParameters.cornerRefinementMinAccuracy   = 0.1
 
 # --------- Build Aruco Marker Detector --------- # 
+print("STEP 4 -> Setup arucoDetector")
 arucoDetector = cv2.aruco.ArucoDetector(arucoDictionary, arucoParameters)
+print("STEP 4 -> Finished setup arucoDetector")
 
 # --------- Set Iteration Counter --------- # 
 C_STEP = 0
@@ -119,23 +128,34 @@ C_STEP = 0
 # ------------------------------------------------------------------------------------------------------- #
 while(cap.isOpened()): 
   # --------- Read Frame-by-Frame --------- # 
+  print("STEP 5 -> Start receiving frame")
   ret, frame = cap.read()
+  print("STEP 5 -> Grabbed frame")
 
   if ret == True: # If frame read correctly            
+    print("STEP 6 -> ret = True")
     # --------- Convert to Grayscale --------- # 
+    print("STEP 7 -> Start gray conversion")
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
+    print("STEP 7 -> Finished gray conversion")
     # --------- Aruco Marker Detection --------- # 
+    print("STEP 8 -> Start aruco detection")
     (markerCorners, _, _) = arucoDetector.detectMarkers(gray_frame)
+    print("STEP 8 -> Finished aruco detection")
     
+    # --------- Update Iteration Counter --------- # 
+    C_STEP = C_STEP + 1
+
+    print(f"-------- ITERATION: {C_STEP} --------") 
+
     if len(markerCorners) > 0: # At least one marker detected
-      # --------- Update Iteration Counter --------- # 
-      C_STEP = C_STEP + 1
-
+      print("STEP 9 -> Aruco marker detected")
       # --------- Aruco Marker Pose Estimation --------- # 
+      print("STEP 10 -> Start Aruco marker pose estimation")
       rvec, tvec, _ = cv2.aruco.estimatePoseSingleMarkers(markerCorners, MARKER_SIZE, camera_Matrix, distortion_Coeff)
-      # (rvec - tvec).any()    # Remove Numpy value array error
-
+      print("STEP 10 -> Retrieved rvec and tvec from Aruco marker pose estimation")
+      (rvec - tvec).any()    # Remove Numpy value array error
+      print("STEP 11 -> Rvec - tvec .any()")
       # if rvec is None:
       #   print(markerCorners)
       #   continue
@@ -145,7 +165,7 @@ while(cap.isOpened()):
       #   continue
 
       # --------- Save and Print X, Y, and Z --------- # 
-      print(f"-------- ITERATION: {C_STEP} --------") 
+      # print(f"-------- ITERATION: {C_STEP} --------") 
       X_ARUCO = tvec[0][0][0]
       print(f"Aruco X: {X_ARUCO}")
 
@@ -156,14 +176,18 @@ while(cap.isOpened()):
       print(f"Aruco Z: {Z_ARUCO}")
 
     # --------- Write Video --------- # 
+    print("STEP 12 -> Start video out.write")
     out.write(frame)
-    
+    print("STEP 12 -> Finish video out.write")
+
     # --------- Display Output Frame --------- # 
     cv2.imshow('Frame', frame)
 
     # --------- Stop Code Execution (Press 'q') --------- # 
+    print("STEP 13 -> Quit code")
     if cv2.waitKey(1) & 0xFF == ord('q'):
-      break
+     print("STEP 14 -> Code quit")
+     break
             
   # --------- Break While Loop (No Frame Retrieved) --------- # 
   else:
@@ -173,6 +197,7 @@ while(cap.isOpened()):
                                             # CLOSE CODE PROPERLY #
 # ------------------------------------------------------------------------------------------------------- #
 # --------- Release/Stop Objects --------- # 
+print("STEP 15 -> Release/stop objects")
 cap.release()
 out.release()
 
