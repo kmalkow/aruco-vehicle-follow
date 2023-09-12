@@ -120,7 +120,8 @@ FILT_E_PRED_m = []
 FILT_N_EST_m  = []
 FILT_E_EST_m  = []
 
-wp_id         = 11                    # Waypoint ID
+wp_id_KF         = 11                    # Waypoint ID
+wp_id_RAW        = 9
 
 rvec = np.zeros([1, 3])
 tvec = np.zeros([1, 3])
@@ -634,7 +635,7 @@ ivy.subscribe(ref_lat_long_alt_callback, message.PprzMessage("telemetry", "INS_R
 
                                  # FUNCTION -> MOVE WAYPOINT #
 # ------------------------------------------------------------------------------------------------------- #
-def move_waypoint(ac_id, wp_id, aruco_lat, aruco_long, aruco_alt):
+def move_waypoint_KF(ac_id, wp_id, aruco_lat, aruco_long, aruco_alt):
     msg = message.PprzMessage("ground", "MOVE_WAYPOINT")
     msg['ac_id'] = ac_id
     msg['wp_id'] = wp_id
@@ -642,6 +643,16 @@ def move_waypoint(ac_id, wp_id, aruco_lat, aruco_long, aruco_alt):
     msg['long'] = aruco_long
     msg['alt'] = aruco_alt
     ivy.send(msg)
+
+def move_waypoint_RAW(ac_id, wp_id, aruco_lat, aruco_long, aruco_alt):
+    msg = message.PprzMessage("ground", "MOVE_WAYPOINT")
+    msg['ac_id'] = ac_id
+    msg['wp_id'] = wp_id
+    msg['lat'] = aruco_lat
+    msg['long'] = aruco_long
+    msg['alt'] = aruco_alt
+    ivy.send(msg)
+
 
 ac_id = input("What Aicraft ID is it being used: ")
 
@@ -739,12 +750,12 @@ while(cap.isOpened()):
   if ret == True: # If frame read correctly          
     print("ret = True")
     # --------- Resize Frame (Noise Reduction) --------- # 
-    # scale_percent = 60 # Percent of original size -> At 60%, dim = (1152, 648), min scale_percent = 50%
-    resized_frame_width = frame_width #int(frame_width * scale_percent / 100)
-    resized_frame_height = frame_height #int(frame_height * scale_percent / 100)
-    # dim = (resized_frame_width, resized_frame_height)
+    scale_percent = 60 # Percent of original size -> At 60%, dim = (1152, 648), min scale_percent = 50%
+    resized_frame_width = int(frame_width * scale_percent / 100)
+    resized_frame_height = int(frame_height * scale_percent / 100)
+    dim = (resized_frame_width, resized_frame_height)
   
-    # frame = cv2.resize(frame, dim)
+    frame = cv2.resize(frame, dim)
     
     # --------- Convert to Grayscale --------- # 
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -922,8 +933,9 @@ while(cap.isOpened()):
         print(FILT_N)
         print(FILT_E)
 
-    # FILT_N = NORTH_ARUCO
-    # FILT_E = EAST_ARUCO
+    FILT_N_RAW = NORTH_ARUCO
+    FILT_E_RAW = EAST_ARUCO
+    FILT_D_RAW = DOWN_ARUCO
 
     # --------- Convert To LAT, LONG, and ALT Aruco Marker Position and Move Waypoint --------- #
     if LAT_0 is not None: 
@@ -949,6 +961,7 @@ while(cap.isOpened()):
             
       # --------- Conversion --------- #
       LAT_ARUCO, LONG_ARUCO, _ = pymap3d.ned2geodetic(FILT_N, FILT_E, FILT_D, LAT_0, LONG_0, ALT_0)
+      LAT_ARUCO_RAW, LONG_ARUCO_RAW, _ = pymap3d.ned2geodetic(FILT_N_RAW, FILT_E_RAW, FILT_D_RAW, LAT_0, LONG_0, ALT_0)
 
       # --------- Altitude --------- #
       ALT_ARUCO = 245 + 10  # Check GCS Alt and manually fill in reference altitude
@@ -968,8 +981,9 @@ while(cap.isOpened()):
       # frame = visualiseArucoGeodeticMarkerPosition(LAT_ARUCO, LONG_ARUCO, ALT_ARUCO, frame, resized_frame_width, resized_frame_height, rvec, tvec, camera_Matrix, distortion_Coeff)
 
       # --------- Move Waypoint --------- #
-      move_waypoint(ac_id, wp_id, LAT_ARUCO, LONG_ARUCO, ALT_ARUCO)
-    
+      move_waypoint_KF(ac_id, wp_id_KF, LAT_ARUCO, LONG_ARUCO, ALT_ARUCO)
+      move_waypoint_RAW(ac_id, wp_id_RAW, LAT_ARUCO_RAW, LONG_ARUCO_RAW, ALT_ARUCO)
+      
     # --------- Write Video --------- # 
     out.write(frame)
     

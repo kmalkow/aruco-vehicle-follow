@@ -165,7 +165,7 @@ def init( X0 ):
 
 
 
-vision_update_counter = 100
+vision_update_counter = 0
 
 def predict(dt):
     global x
@@ -178,9 +178,9 @@ def predict(dt):
 
     # dt = 1.0 / 15.0
 
-    # if vision_update_counter >= 100:
+    # if vision_update_counter >= 75:
     
-    #     if vision_update_counter == 100:
+    #     if vision_update_counter == 75:
     #         nr = find_closest_point(x)
 
     #     return route()
