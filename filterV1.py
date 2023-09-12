@@ -178,14 +178,16 @@ def predict(dt):
 
     # dt = 1.0 / 15.0
 
-    if vision_update_counter >= 100:
+    # if vision_update_counter >= 100:
     
-        if vision_update_counter == 100:
-            nr = find_closest_point(x)
+    #     if vision_update_counter == 100:
+    #         nr = find_closest_point(x)
 
-        return route()
+    #     return route()
 
-    else:
+    # else:
+
+    if True:
 
         A = np.asarray([[1,  0,  dt,  0],
                         [0,  1,  0,   dt],
