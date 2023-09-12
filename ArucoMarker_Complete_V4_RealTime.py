@@ -60,12 +60,41 @@ cv_file.release()
 # ------------------------------------------------------------------------------------------------------- #
 MARKER_SIZE = 1.107                   # Size of Aruco marker in [m] -> 1.107 [m]||0.35 [m]
 
+                                # FUNCTION -> VISUALISE LEGEND #
+# ------------------------------------------------------------------------------------------------------- #
+def timeout(timeout_duration=3):
+  class TimeoutError(Exception):
+    pass
+
+  def handler(A, B):
+    raise TimeoutError()
+  
+  # --------- Set Timeout Handler --------- #
+  signal.signal(signal.SIGALRM, handler)
+  signal.alarm(timeout_duration)
+
+  try:
+    # --------- Read Frame-by-Frame --------- # 
+    print("STEP 5 -> Start receiving frame")
+    ret, frame = cap.read()
+    print("STEP 5 -> Grabbed frame")
+
+  except TimeoutError as exc:
+    print(exc)
+    ret = False
+    frame = None
+
+  finally:
+    signal.alarm(0)
+
+  return ret, frame 
+
                                               # VIDEO #
 # ------------------------------------------------------------------------------------------------------- #
 # --------- Load Video --------- #
 print("STEP 1 -> Starting videoCapture object")
-# cap = cv2.VideoCapture("rtsp://192.168.42.129:8554/fpv_stream") # Create a VideoCapture object (input is for herelink bluetooth tethering)
-cap = cv2.VideoCapture("rtsp://192.168.43.1:8554/fpv_stream") # Create a VideoCapture object (input is for herelink wifi connection)
+cap = cv2.VideoCapture("rtsp://192.168.42.129:8554/fpv_stream") # Create a VideoCapture object (input is for herelink bluetooth tethering)
+# cap = cv2.VideoCapture("rtsp://192.168.43.1:8554/fpv_stream") # Create a VideoCapture object (input is for herelink wifi connection)
 print("STEP 1 -> Finished videoCapture object")
 FPS = cap.get(cv2.CAP_PROP_FPS)                                                          # Read FPS from input video
 print(FPS)
@@ -127,10 +156,8 @@ C_STEP = 0
                                             # RUN MAIN LOOP #
 # ------------------------------------------------------------------------------------------------------- #
 while(cap.isOpened()): 
-  # --------- Read Frame-by-Frame --------- # 
-  print("STEP 5 -> Start receiving frame")
-  ret, frame = cap.read()
-  print("STEP 5 -> Grabbed frame")
+
+  ret, frame = timeout()  
 
   if ret == True: # If frame read correctly            
     print("STEP 6 -> ret = True")
