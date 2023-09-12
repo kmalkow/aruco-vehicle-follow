@@ -63,7 +63,7 @@ test_field_track = np.asarray([-81.9,
 133.7])
 
 y = racetrack_at_competition
-y = test_field_track
+# y = test_field_track
 
 n = len(y)
 y = y.reshape((int(n/2),2))
@@ -74,7 +74,7 @@ tck1 = interpolate.splrep(x, y[:,0], s=0.001, k=3)
 tck2 = interpolate.splrep(x, y[:,1], s=0.001, k=3)
 
 # 10000 = 4m/s
-x_new = np.linspace(min(x), max(x), 500)
+x_new = np.linspace(min(x), max(x), 10000)
 y_fitx = interpolate.BSpline(*tck1)(x_new)
 y_fity = interpolate.BSpline(*tck2)(x_new)
 
@@ -183,11 +183,11 @@ def predict(dt):
     #     if vision_update_counter == 75:
     #         nr = find_closest_point(x)
 
-    #     return route()
+        return route()
 
-    # else:
+    else:
 
-    if True:
+    # if True:
 
         A = np.asarray([[1,  0,  dt,  0],
                         [0,  1,  0,   dt],

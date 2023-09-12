@@ -6,8 +6,8 @@ from filterV1 import init, predict, update
 
 # READ LOGFILES
 
-f_N = open("./Measured_Variables/Outdoor_Tests/IMAV_11_09_23_TEST1_ArucoNORTH_V3")
-f_E = open("./Measured_Variables/Outdoor_Tests/IMAV_11_09_23_TEST1_ArucoEAST_V3")
+f_N = open("Measured_Variables/Outdoor_Tests/IMAV_11_09_23_TEST1_ArucoNORTH_V3")
+f_E = open("Measured_Variables/Outdoor_Tests/IMAV_11_09_23_TEST1_ArucoEAST_V3")
 
 N = np.loadtxt(f_N, delimiter=",", dtype=str).astype(float)
 E = np.loadtxt(f_E, delimiter=",", dtype=str).astype(float)
@@ -18,10 +18,15 @@ E = np.loadtxt(f_E, delimiter=",", dtype=str).astype(float)
 tM = N[:,1]
 print("Simulation end time",tM[-1])
 dt = 1.0 / 15.0
-extra_time = 250
+extra_time = 0
 tsim = np.arange(0,tM[-1]+extra_time,dt)
 
 
+VN = np.ediff1d(N[:,0]) / np.array(dt)
+VE = np.ediff1d(E[:,1]) / np.array(dt)
+
+print(N)
+print(VN)
 
 # LOGGING FOR PLOT
 pf_N = []
@@ -31,7 +36,7 @@ pf_VE = []
 
 
 # init
-init( [N[0,0], E[0,0], 25] )
+x = init( [N[0,0], E[0,0], 25] );
 
 i = 0
 for t in np.nditer(tsim):
@@ -66,21 +71,26 @@ plt.plot(N[:,0], E[:,0],'x')
 plt.plot(pf_N, pf_E)
 #plt.plot(pf_N, pf_E, '*')
 plt.ylabel('some numbers')
+plt.axis('equal')
 plt.grid()
 plt.show()
 
 
 fig, axs = plt.subplots(2, 2)
 axs[0, 0].plot(tsim, pf_N)
+axs[0, 0].plot(tM, N[:,0], 'x')
 axs[0, 0].set_title('N')
 axs[0, 0].grid()
 axs[0, 1].plot(tsim, pf_E, 'tab:orange')
+axs[0, 1].plot(tM, E[:,0], 'x')
 axs[0, 1].set_title('E')
 axs[0, 1].grid()
 axs[1, 0].plot(tsim, pf_VN, 'tab:green')
+axs[1, 0].plot(tM[1:], VN, 'x')
 axs[1, 0].set_title('VN')
 axs[1, 0].grid()
 axs[1, 1].plot(tsim, pf_VE, 'tab:red')
+axs[1, 1].plot(tM[1:], VE, 'x')
 axs[1, 1].set_title('VE')
 axs[1, 1].grid()
 plt.show()
