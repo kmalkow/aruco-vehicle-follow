@@ -78,16 +78,17 @@ y_fity = interpolate.BSpline(*tck2)(x_new)
 
 fit = np.vstack((y_fitx, y_fity)).T
 
+def find_closest_point( P ):
+    global fit
+
+    distances = np.sqrt((fit[:, 0] - P[0])**2 + (fit[:, 1] - P[1])**2)
+    closest_index = np.argmin(distances)
+    return closest_index
+
+
 start = np.asarray([[-113.6], [67]])
-
-
-distances = np.sqrt((fit[:, 0] - start[0])**2 + (fit[:, 1] - start[1])**2)
-closest_index = np.argmin(distances)
-
-print('Start at:',closest_index)
-
-
-nr = closest_index
+nr = find_closest_point(start)
+print('Start at:', nr)
 
 def route():
     global nr
@@ -99,10 +100,7 @@ def route():
     if nr >= len(y_fitx):
         nr = 0
 
-    #print(Z)
-
-
-    x = np.asarray([[y_fity[nr]],[y_fitx[nr]]])
+    x = [y_fity[nr], y_fitx[nr] ]
     return x
 
 
@@ -163,22 +161,39 @@ def init( X0 ):
     
     print('X0 set to:', x)
 
+
+
+vision_update_counter = 100
+
 def predict(dt):
     global x
     global P
     global Q
+    global vision_update_counter
+    global nr
+
+    vision_update_counter += 1
 
     # dt = 1.0 / 15.0
 
-    A = np.asarray([[1,  0,  dt,  0],
-                    [0,  1,  0,   dt],
-                    [0,  0,  1,   0],
-                    [0,  0,  0,   1]] )
+    if vision_update_counter >= 100:
+    
+        if vision_update_counter == 100:
+            nr = find_closest_point(x)
+
+        return route()
+
+    else:
+
+        A = np.asarray([[1,  0,  dt,  0],
+                        [0,  1,  0,   dt],
+                        [0,  0,  1,   0],
+                        [0,  0,  0,   1]] )
 
 
-    # Kalman predict
-    x = A @ x
-    P = ((A @ P) @ A.T) + Q
+        # Kalman predict
+        x = A @ x
+        P = ((A @ P) @ A.T) + Q
 
     return x
 
@@ -191,6 +206,9 @@ def update(Z):
     global P
     global KP
     global KV
+    global vision_ok
+
+    vision_update_counter = 0
 
     zk = np.asarray([[Z[0]],
                      [Z[1]]])
