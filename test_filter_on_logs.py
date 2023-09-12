@@ -18,7 +18,8 @@ E = np.loadtxt(f_E, delimiter=",", dtype=str).astype(float)
 tM = N[:,1]
 print("Simulation end time",tM[-1])
 dt = 1.0 / 15.0
-tsim = np.arange(0,tM[-1],dt)
+extra_time = 250
+tsim = np.arange(0,tM[-1]+extra_time,dt)
 
 
 
@@ -42,12 +43,17 @@ for t in np.nditer(tsim):
         # correct
         Z = [N[i,0], E[i,0], 25]
         #print('Z', Z)
-        x = update( Z )
+        if i < (len(tM)-1):
+            x = update( Z )
         #print('correct x=', x)
 
+        #print(len(tM))
         while tM[i] < t:
-            i+=1
-        
+            if i < (len(tM)-1):
+                i+=1
+            else:
+                i = len(tM) - 1
+                break
 
     pf_N.append(float(x[0]))
     pf_E.append(float(x[1]))

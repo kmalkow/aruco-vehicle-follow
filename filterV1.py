@@ -58,7 +58,9 @@ test_field_track = np.asarray([-81.9,
 -28.7,
 183.9,
 -141.7,
-199.9])
+199.9,
+-81.9,
+133.7])
 
 y = racetrack_at_competition
 y = test_field_track
@@ -72,7 +74,7 @@ tck1 = interpolate.splrep(x, y[:,0], s=0.001, k=3)
 tck2 = interpolate.splrep(x, y[:,1], s=0.001, k=3)
 
 # 10000 = 4m/s
-x_new = np.linspace(min(x), max(x), 10000)
+x_new = np.linspace(min(x), max(x), 500)
 y_fitx = interpolate.BSpline(*tck1)(x_new)
 y_fity = interpolate.BSpline(*tck2)(x_new)
 
@@ -100,7 +102,7 @@ def route():
     if nr >= len(y_fitx):
         nr = 0
 
-    x = [y_fity[nr], y_fitx[nr] ]
+    x = [y_fity[nr], y_fitx[nr], 0, 0 ]
     return x
 
 
@@ -206,7 +208,7 @@ def update(Z):
     global P
     global KP
     global KV
-    global vision_ok
+    global vision_update_counter
 
     vision_update_counter = 0
 
