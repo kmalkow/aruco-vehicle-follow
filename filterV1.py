@@ -89,20 +89,32 @@ print('Start at:',closest_index)
 
 nr = closest_index
 
+def route():
+    global nr
+    global y_fitx
+    global y_fity
+
+    # Hack: move along the track blindly
+    nr += 1
+    if nr >= len(y_fitx):
+        nr = 0
+
+    #print(Z)
+
+
+    x = np.asarray([[y_fity[nr]],[y_fitx[nr]]])
+    return x
+
+
+
 #############################################################################
 ## Kalman filter stuff
-
-dt = 1.0 / 15.0
 
 x = np.asarray([[start[0]],
                 [start[1]],
                 [0],
                 [0]])
 
-A = np.asarray([[1,  0,  dt,  0],
-                [0,  1,  0,   dt],
-                [0,  0,  1,   0],
-                [0,  0,  0,   1]] )
 
 H = np.asarray([[1,  0, 0 ,0],
                 [0,  1, 0 ,0]] )
@@ -137,8 +149,12 @@ KV = 0.0001
 
 
 
-def init(N, E, D):
+def init( X0 ):
     global x
+
+    N = X0[0]
+    E = X0[1]
+    D = X0[2]
 
     x = np.asarray([[N],
                 [E],
@@ -147,12 +163,21 @@ def init(N, E, D):
     
     print('X0 set to:', x)
 
+    return x
 
-def predict(Xunsued):
+
+def predict(dt):
     global x
-    global A
     global P
     global Q
+
+    # dt = 1.0 / 15.0
+
+    A = np.asarray([[1,  0,  dt,  0],
+                    [0,  1,  0,   dt],
+                    [0,  0,  1,   0],
+                    [0,  0,  0,   1]] )
+
 
     # Kalman predict
     x = A @ x
@@ -161,24 +186,8 @@ def predict(Xunsued):
     return x
 
 
-def route(Xunsued):
-    global nr
-    global y_fitx
-    global y_fity
 
-    # Hack: move along the track blindly
-    nr += 1
-    if nr >= len(y_fitx):
-        nr = 0
-
-    #print(Z)
-
-
-    x = np.asarray([[y_fity[nr]],[y_fitx[nr]]])
-    return x
-
-
-def correct(X_unused, Z):
+def correct(Z):
     global x
     global H
     global R
