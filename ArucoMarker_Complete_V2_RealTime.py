@@ -63,7 +63,7 @@ import pprzlink.message as message
 # UNCOMMENT FOR ALESSANDROS LAPTOP:
 # pathLoad = './CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w1920_h1080_HERELINKV2.xml'
 
-pathLoad = './CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w1920_h1080_HERELINKV2.xml'
+pathLoad = './CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w1920_h1080_HERELINKV2_Christophe.xml'
 # pathLoad = '~/IMAV2023/CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w640_h480.xml'
 cv_file = cv2.FileStorage(pathLoad, cv2.FILE_STORAGE_READ)
 camera_Matrix = cv_file.getNode("cM").mat()
@@ -199,7 +199,7 @@ def NED_conversion(pitch, roll, yaw, Aruco_position):
                   [0, np.sin(roll),  np.cos(roll)]])
 
     # --------- Rotation Matrix ------- # 
-    R = RX @ RY @ RZ 
+    R = RZ @ RY @ RX 
 
     # --------- Obtain NED Coordinates ------- # 
     NED_vector = np.dot(R, Aruco_position)
@@ -647,8 +647,8 @@ frame_height = int(cap.get(4))
 
 # --------- Write Video Setup --------- #
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')                                                     # Define video codec (FOURCC code)
-# out = cv2.VideoWriter('./IMAV2023/Live_Videos/IMAV_09_09_23_TEST4_CompleteV2.mp4', 
-#                       fourcc, FPS, (1152, 648))                                      # Create VideoWriter object 
+out = cv2.VideoWriter('./IMAV2023/Live_Videos/IMAV_Valkenburg_20_07_23.mp4', 
+                      fourcc, FPS, (1152, 648))                                      # Create VideoWriter object 
 
 # UNCOMMENT FOR ALESSANDROS LAPTOP:
 # out = cv2.VideoWriter('./Live_Videos/IMAV_09_09_23_TEST1_CompleteV2.mp4', 
@@ -713,12 +713,12 @@ while(cap.isOpened()):
 
   if ret == True: # If frame read correctly          
     # --------- Resize Frame (Noise Reduction) --------- # 
-    # scale_percent = 60 # Percent of original size -> At 60%, dim = (1152, 648), min scale_percent = 50%
-    resized_frame_width = frame_width #int(frame_width * scale_percent / 100)
-    resized_frame_height = frame_height #int(frame_height * scale_percent / 100)
-    # dim = (resized_frame_width, resized_frame_height)
+    scale_percent = 60 # Percent of original size -> At 60%, dim = (1152, 648), min scale_percent = 50%
+    resized_frame_width = int(frame_width * scale_percent / 100)
+    resized_frame_height = int(frame_height * scale_percent / 100)
+    dim = (resized_frame_width, resized_frame_height)
   
-    # frame = cv2.resize(frame, dim)
+    frame = cv2.resize(frame, dim)
     
     # --------- Convert to Grayscale --------- # 
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -894,7 +894,7 @@ while(cap.isOpened()):
             # move_waypoint(ac_id, wp_id, LAT_ARUCO, LONG_ARUCO, ALT_ARUCO)
     
     # --------- Write Video --------- # home
-    # out.write(frame)
+    out.write(frame)
     
     # --------- Display Output Frame --------- # 
     cv2.imshow('Frame', frame)
@@ -1097,7 +1097,7 @@ while(cap.isOpened()):
 # ------------------------------------------------------------------------------------------------------- #
 # --------- Release/Stop Objects --------- # 
 cap.release()
-# out.release()
+out.release()
 ivy.shutdown()
 
 # --------- Close Frames --------- # 
