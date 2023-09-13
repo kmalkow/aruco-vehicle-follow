@@ -83,7 +83,7 @@ fit = np.vstack((y_fitx, y_fity)).T
 def find_closest_point( P ):
     global fit
 
-    distances = np.sqrt((fit[:, 0] - P[0])**2 + (fit[:, 1] - P[1])**2)
+    distances = np.sqrt((fit[:, 1] - P[0])**2 + (fit[:, 0] - P[1])**2)
     closest_index = np.argmin(distances)
     return closest_index
 

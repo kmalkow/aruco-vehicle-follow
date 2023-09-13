@@ -12,7 +12,7 @@ f_E = open("Measured_Variables/Outdoor_Tests/IMAV_12_09_23_TEST7_DroneEAST_V3")
 E = np.loadtxt(f_N, delimiter=",", dtype=str).astype(float)
 N = np.loadtxt(f_E, delimiter=",", dtype=str).astype(float)
 
-E[:,0] = -E[:,0] - 140
+E[:,0] = -E[:,0] - 110
 N[:,0] = -N[:,0] + 100
 
 # SIMULATED MAIN LOOP AT 15Hz
@@ -20,7 +20,7 @@ N[:,0] = -N[:,0] + 100
 tM = N[:,1]
 print("Simulation end time",tM[-1])
 dt = 1.0 / 15.0
-extra_time = 1000
+extra_time = 200
 tsim = np.arange(0,tM[-1]+extra_time,dt)
 
 
