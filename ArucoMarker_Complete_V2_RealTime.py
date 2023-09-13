@@ -773,8 +773,11 @@ while(cap.isOpened()):
 
       # --------- Aruco Marker Pose Estimation --------- # 
       rvec, tvec, _ = cv2.aruco.estimatePoseSingleMarkers(markerCorners, MARKER_SIZE, camera_Matrix, distortion_Coeff)
-      (rvec - tvec).any()    # Remove Numpy value array error
+      # (rvec - tvec).any()    # Remove Numpy value array error
 
+      print(rvec)
+      print(tvec)
+      
       if rvec is None:
         print(markerCorners)
         continue

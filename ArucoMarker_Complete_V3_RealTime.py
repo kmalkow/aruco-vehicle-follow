@@ -741,7 +741,9 @@ ac_id = input("Enter Aicraft ID: ")
 # ------------------------------------------------------------------------------------------------------- #
 # --------- Load Video --------- #
 # cap = cv2.VideoCapture("rtsp://192.168.43.1:8554/fpv_stream") # Create a VideoCapture object (input is for herelink wifi connection)
-cap = cv2.VideoCapture("rtsp://192.168.42.129:8554/fpv_stream") # Create a VideoCapture object (input is for herelink bluetooth tethering)
+path = './Live_Videos/VALKENBURG_20_07_23_TEST7_SHORTENED.mp4'        # Define video path	
+cap = cv2.VideoCapture(path)
+# cap = cv2.VideoCapture("rtsp://192.168.42.129:8554/fpv_stream") # Create a VideoCapture object (input is for herelink bluetooth tethering)
 FPS = cap.get(cv2.CAP_PROP_FPS)                                 # Read FPS from input video
 
 if FPS == 0:
@@ -887,31 +889,31 @@ while(cap.isOpened()):
 
     if len(markerCorners) > 0: # At least one marker detected
       # --------- Aruco Marker Pose Estimation --------- # 
+      rvec, tvec, _ = cv2.aruco.estimatePoseSingleMarkers(markerCorners, MARKER_SIZE, camera_Matrix, distortion_Coeff)
+      # (rvec - tvec).any()    # Remove Numpy value array error
+         
+      # --------- Save and Print X, Y, and Z --------- # 
       try:
-        rvec, tvec, _ = cv2.aruco.estimatePoseSingleMarkers(markerCorners, MARKER_SIZE, camera_Matrix, distortion_Coeff)
-        # (rvec - tvec).any()    # Remove Numpy value array error
+        X_ARUCO = tvec[0][0][0]
+        X_ARUCO_m.append(X_ARUCO)          # Save measured X
+        print(f"Aruco X: {X_ARUCO}")
 
+        Y_ARUCO = tvec[0][0][1]
+        Y_ARUCO_m.append(Y_ARUCO)          # Save measured Y
+        print(f"Aruco Y: {Y_ARUCO}")
+
+        Z_ARUCO = tvec[0][0][2]
+        Z_ARUCO_m.append(Z_ARUCO)          # Save measured Z
+        print(f"Aruco Z: {Z_ARUCO}")
+
+      # --------- Visualise X, Y, Z Aruco Marker Position --------- # 
+        frame = visualiseArucoXYZMarkerPosition(X_ARUCO, Y_ARUCO, Z_ARUCO, frame, resized_frame_width, resized_frame_height, rvec[0], tvec[0], camera_Matrix, distortion_Coeff)
+              
       except:
         print("-------------------------------") 
         print("Error: rvec/tvec empty")
         print("-------------------------------")
         continue 
-         
-      # --------- Save and Print X, Y, and Z --------- # 
-      X_ARUCO = tvec[0][0][0]
-      X_ARUCO_m.append(X_ARUCO)          # Save measured X
-      print(f"Aruco X: {X_ARUCO}")
-
-      Y_ARUCO = tvec[0][0][1]
-      Y_ARUCO_m.append(Y_ARUCO)          # Save measured Y
-      print(f"Aruco Y: {Y_ARUCO}")
-
-      Z_ARUCO = tvec[0][0][2]
-      Z_ARUCO_m.append(Z_ARUCO)          # Save measured Z
-      print(f"Aruco Z: {Z_ARUCO}")
-
-      # --------- Visualise X, Y, Z Aruco Marker Position --------- # 
-      frame = visualiseArucoXYZMarkerPosition(X_ARUCO, Y_ARUCO, Z_ARUCO, frame, resized_frame_width, resized_frame_height, rvec, tvec, camera_Matrix, distortion_Coeff)
 
       # --------- NED Conversion and Moving to Relative Position --------- # 
       if PITCH_DRONE is not None: 
