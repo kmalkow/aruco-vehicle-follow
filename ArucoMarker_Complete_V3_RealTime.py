@@ -1,15 +1,16 @@
 # --------------------------------------------------------------------------
-# Author:           Kevin Malkow and Sergio Marin Petersen
-# Date:             10/09/23
+# Author:           Kevin Malkow, Sergio Marin Petersen, and Christophe de Wagter
+# Date:             13/09/23
 # Affiliation:      TU Delft, IMAV 2023
 #
-# Version:          2.0 
+# Version:          3.0 
 # 
 # Description:  
 # - Detect Aruco markers and estimate Aruco marker position from real-time video stream
 # - Get attitude, NED position, reference latitude, reference longitude, and reference altitude from drone through Ivybus
 # - Convert Aruco marker position in image plane coordinates to NED coordinates for navigation algorithm
 #   using drone attitude
+# - Applying Kalman filter to NED values to get smooth waypoint moving (very special thanks to Christophe de Wagter)
 # - Convert Aruco marker position to latitude, longitude, and altitude
 # - Moving waypoint to Aruco marker position in latitude, longitude, and altitude 
 #
@@ -30,9 +31,6 @@ import numpy as np
 from filterV1 import init, predict, update, route
 
 # --------- Ivybus Specific --------- # 
-# UNCOMMENT FOR ALESSANDROS LAPTOP:
-# sys.path.append("/home/ppz/paparazzi/sw/ext/pprzlink/lib/v2.0/python/")    
-
 sys.path.append("/home/kevin/paparazzi/sw/ext/pprzlink/lib/v2.0/python/")
 
 from ivy.std_api import *
@@ -61,11 +59,7 @@ import pprzlink.message as message
 
                                       # LOAD CAMERA PARAMETERS #
 # ------------------------------------------------------------------------------------------------------- #
-# UNCOMMENT FOR ALESSANDROS LAPTOP:
-pathLoad = './CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w1920_h1080_HERELINKV2_Christophe.xml'
-
-# pathLoad = '/home/kevin/IMAV2023/CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w1920_h1080_HERELINKV2.xml'
-# pathLoad = '~/IMAV2023/CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w640_h480.xml'
+pathLoad = './CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w1152_h648_HERELINKV2.xml'
 cv_file = cv2.FileStorage(pathLoad, cv2.FILE_STORAGE_READ)
 camera_Matrix = cv_file.getNode("cM").mat()
 distortion_Coeff = cv_file.getNode("dist").mat()
@@ -73,7 +67,7 @@ cv_file.release()
 
                                         # VARIABLE DEFINITION #
 # ------------------------------------------------------------------------------------------------------- #
-MARKER_SIZE = 1.107                       # Size of Aruco marker in [m] -> 1.107 [m]||0.35 [m]
+MARKER_SIZE = 1.107                   # Size of Aruco marker in [m] -> 1.107 [m]||0.35 [m]
 
 PITCH_values = None                   # Global variable to store Ivybus received pitch values
 ROLL_values = None                    # Global variable to store Ivybus received roll values
@@ -90,15 +84,6 @@ REF_LONG_values = None                # Global variable to store Ivybus received
 REF_ALT_values = None                 # Global variable to store Ivybus received ALTITUDE values
 pprz_lat_long_conversion = 0.0000001  # Unit conversion from pprz message to lat, long 
 pprz_alt_conversion = 0.001           # Unit conversion from pprz message to alt 
-
-# scale_percent_720p = 66.7
-# scaling_factor_X_720p = -0.305            # Scaling factor to account for reduced frame size in Aruco marker X measurements
-# scaling_factor_Y_720p = -0.2519           # Scaling factor to account for reduced frame size in Aruco marker Y measurements
-# scaling_factor_Z_720p = -0.101            # Scaling factor to account for reduced frame size in Aruco marker Z measurements
-
-# scaling_factor_X = -0.42            # Scaling factor to account for reduced frame size in Aruco marker X measurements
-# scaling_factor_Y = -0.34            # Scaling factor to account for reduced frame size in Aruco marker Y measurements
-# scaling_factor_Z = -0.02             # Scaling factor to account for reduced frame size in Aruco marker Z measurements
 
 X_ARUCO_m = []                        # Variable to save measured X value
 Y_ARUCO_m = []                        # Variable to save measured Y value
@@ -119,23 +104,23 @@ LAT_0_m       = []                    # Variable to save measured drone LAT valu
 LONG_0_m      = []                    # Variable to save measured drone LONG value
 ALT_0_m       = []                    # Variable to save measured drone ALT value
 time_m        = []                    # Variable to save measured time
-FILT_N_PRED_m = []
-FILT_E_PRED_m = []
-FILT_N_EST_m  = []
-FILT_E_EST_m  = []
+FILT_N_PRED_m = []                    # Variable to save predicted Kalman filter NORTH value
+FILT_E_PRED_m = []                    # Variable to save predicted Kalman filter EAST value
+FILT_N_UPD_m  = []                    # Variable to save updated Kalman filter NORTH value
+FILT_E_UPD_m  = []                    # Variable to save updated Kalman filter EAST value
 
-wp_id_KF         = 11                    # Waypoint ID
-wp_id_RAW        = 9
+wp_id_KF      = 11                    # Waypoint ID for LAT, LONG from Kalman filter
+wp_id_RAW     = 9                     # Waypoint ID for LAT, LONG from Aruco detection
 
-NORTH_ARUCO   = 0
-EAST_ARUCO    = 0
-DOWN_ARUCO    = 0
+NORTH_ARUCO   = 0                     # Define global variable for Aruco NORTH 
+EAST_ARUCO    = 0                     # Define global variable for Aruco EAST
+DOWN_ARUCO    = 0                     # Define global variable for Aruco DOWN
 
-FILT_N        = 0
-FILT_E        = 0
-FILT_D        = 0
+FILT_N        = 0                     # Define global variable for Kalman filter NORTH 
+FILT_E        = 0                     # Define global variable for Kalman filter EAST 
+FILT_D        = 0                     # Define global variable for Kalman filter DOWN 
 
-IS_FILT_INIT = False
+IS_FILT_INIT = False                  # Flag to check if Kalman filter is initialised 
 
                                   # FUNCTIONS -> IVYBUS MESSAGES #
 # ------------------------------------------------------------------------------------------------------- #
@@ -223,11 +208,7 @@ def NED_conversion(pitch, roll, yaw, Aruco_position):
     # --------- Rotation Matrix ------- # 
     R = RZ @ RY @ RX 
 
-    print(f"Rot mat: {R}")
-    print(f"Aruco pos: {Aruco_position}")
-
     # --------- Obtain NED Coordinates ------- #
-    # NED_vector = R @ Aruco_position
     NED_vector = np.dot(R, Aruco_position)
     NORTH, EAST, DOWN = NED_vector.squeeze()
 
@@ -237,7 +218,7 @@ def NED_conversion(pitch, roll, yaw, Aruco_position):
 # ------------------------------------------------------------------------------------------------------- #
 def visualizeLegend(frame_legend, width, height):
   # --------- Show "ARUCO" --------- # 
-  org = (int(0.02*width), int(0.165*height))
+  org = (int(0.02*width), int(0.05*height))
   text = "ARUCO"
   font = cv2.FONT_HERSHEY_PLAIN
   fontScale = 1.25
@@ -246,7 +227,7 @@ def visualizeLegend(frame_legend, width, height):
   frame_legend = cv2.putText(frame_legend, text, org, font, fontScale, color, lineThickness, cv2.LINE_AA)
 
   # --------- Show Aruco Z --------- # 
-  org = (int(0.03*width), int(0.205*height))
+  org = (int(0.03*width), int(0.09*height))
   text = f"Z: "
   font = cv2.FONT_HERSHEY_PLAIN
   fontScale = 1
@@ -254,18 +235,81 @@ def visualizeLegend(frame_legend, width, height):
   lineThickness = 2
   frame_legend = cv2.putText(frame_legend, text, org, font, fontScale, color, lineThickness, cv2.LINE_AA)
 
-  # --------- Show Aruco DOWN --------- # 
-  org = (int(0.03*width), int(0.23*height))
-  text = f"DOWN: "
+  # --------- Show Aruco Altitude --------- # 
+  org = (int(0.03*width), int(0.115*height))
+  text = f"ALT: "
   font = cv2.FONT_HERSHEY_PLAIN
   fontScale = 1
   color = (255, 255, 255)
   lineThickness = 2
   frame_legend = cv2.putText(frame_legend, text, org, font, fontScale, color, lineThickness, cv2.LINE_AA)
 
-    # --------- Show Aruco ALTITUDE --------- # 
-  org = (int(0.03*width), int(0.255*height))
-  text = f"ALTITUDE: "
+  # --------- Show Aruco X_B --------- # 
+  org = (int(0.03*width), int(0.27*height))
+  text = f"X-BODY: "
+  font = cv2.FONT_HERSHEY_PLAIN
+  fontScale = 1
+  color = (255, 255, 255)
+  lineThickness = 2
+  frame_legend = cv2.putText(frame_legend, text, org, font, fontScale, color, lineThickness, cv2.LINE_AA)
+
+  # --------- Show Aruco Y_B --------- # 
+  org = (int(0.03*width), int(0.31*height))
+  text = f"Y-BODY: "
+  font = cv2.FONT_HERSHEY_PLAIN
+  fontScale = 1
+  color = (255, 255, 255)
+  lineThickness = 2
+  frame_legend = cv2.putText(frame_legend, text, org, font, fontScale, color, lineThickness, cv2.LINE_AA)
+
+  # --------- Show Aruco RAW NORTH --------- # 
+  org = (int(0.03*width), int(0.35*height))
+  text = f"RAW NORTH: "
+  font = cv2.FONT_HERSHEY_PLAIN
+  fontScale = 1
+  color = (255, 255, 255)
+  lineThickness = 2
+  frame_legend = cv2.putText(frame_legend, text, org, font, fontScale, color, lineThickness, cv2.LINE_AA)
+
+  # --------- Show Aruco RAW EAST --------- # 
+  org = (int(0.03*width), int(0.39*height))
+  text = f"RAW EAST: "
+  font = cv2.FONT_HERSHEY_PLAIN
+  fontScale = 1
+  color = (255, 255, 255)
+  lineThickness = 2
+  frame_legend = cv2.putText(frame_legend, text, org, font, fontScale, color, lineThickness, cv2.LINE_AA)
+
+  # --------- Show Aruco FILTERED NORTH --------- # 
+  org = (int(0.03*width), int(0.43*height))
+  text = f"FILT NORTH: "
+  font = cv2.FONT_HERSHEY_PLAIN
+  fontScale = 1
+  color = (255, 255, 255)
+  lineThickness = 2
+  frame_legend = cv2.putText(frame_legend, text, org, font, fontScale, color, lineThickness, cv2.LINE_AA)
+
+  # --------- Show Aruco FILTERED EAST --------- # 
+  org = (int(0.03*width), int(0.47*height))
+  text = f"FILT EAST: "
+  font = cv2.FONT_HERSHEY_PLAIN
+  fontScale = 1
+  color = (255, 255, 255)
+  lineThickness = 2
+  frame_legend = cv2.putText(frame_legend, text, org, font, fontScale, color, lineThickness, cv2.LINE_AA)
+
+   # --------- Show Aruco LAT --------- # 
+  org = (int(0.03*width), int(0.51*height))
+  text = f"LAT: "
+  font = cv2.FONT_HERSHEY_PLAIN
+  fontScale = 1
+  color = (255, 255, 255)
+  lineThickness = 2
+  frame_legend = cv2.putText(frame_legend, text, org, font, fontScale, color, lineThickness, cv2.LINE_AA)
+
+  # --------- Show Aruco LONG --------- # 
+  org = (int(0.03*width), int(0.55*height))
+  text = f"LONG: "
   font = cv2.FONT_HERSHEY_PLAIN
   fontScale = 1
   color = (255, 255, 255)
@@ -273,7 +317,7 @@ def visualizeLegend(frame_legend, width, height):
   frame_legend = cv2.putText(frame_legend, text, org, font, fontScale, color, lineThickness, cv2.LINE_AA)
 
   # --------- Show "DRONE" --------- # 
-  org = (int(0.02*width), int(0.42*height))
+  org = (int(0.02*width), int(0.62*height))
   text = "DRONE"
   font = cv2.FONT_HERSHEY_PLAIN
   fontScale = 1.25
@@ -281,8 +325,27 @@ def visualizeLegend(frame_legend, width, height):
   lineThickness = 2
   frame_legend = cv2.putText(frame_legend, text, org, font, fontScale, color, lineThickness, cv2.LINE_AA)   
   
+  # --------- Show Drone PITCH --------- # 
+  org_1 = (int(0.03*width), int(0.66*height))
+  text_1 = f"PITCH: "
+  font_1 = cv2.FONT_HERSHEY_PLAIN
+  fontScale_1 = 1
+  color_1 = (255, 255, 255)
+  lineThickness_1 = 2
+  frame_legend = cv2.putText(frame_legend, text_1, org_1, font_1, fontScale_1, color_1, lineThickness_1, cv2.LINE_AA)
+
+  # --------- Show Drone ROLL --------- # 
+  org_2 = (int(0.03*width), int(0.7*height))
+  text_2 = f"ROLL: "
+  frame_legend = cv2.putText(frame_legend, text_2, org_2, font_1, fontScale_1, color_1, lineThickness_1, cv2.LINE_AA)
+
+  # --------- Show Drone YAW --------- # 
+  org_3 = (int(0.03*width), int(0.74*height))
+  text_3 = f"YAW: "
+  frame_legend = cv2.putText(frame_legend, text_3, org_3, font_1, fontScale_1, color_1, lineThickness_1, cv2.LINE_AA)
+
   # --------- Show Drone NORTH --------- # 
-  org = (int(0.03*width), int(0.57*height))
+  org = (int(0.03*width), int(0.78*height))
   text = f"NORTH: "
   font = cv2.FONT_HERSHEY_PLAIN
   fontScale = 1
@@ -291,7 +354,7 @@ def visualizeLegend(frame_legend, width, height):
   frame_legend = cv2.putText(frame_legend, text, org, font, fontScale, color, lineThickness, cv2.LINE_AA)
   
   # --------- Show Drone EAST --------- # 
-  org = (int(0.03*width), int(0.605*height))
+  org = (int(0.03*width), int(0.82*height))
   text = f"EAST: "
   font = cv2.FONT_HERSHEY_PLAIN
   fontScale = 1
@@ -300,7 +363,7 @@ def visualizeLegend(frame_legend, width, height):
   frame_legend = cv2.putText(frame_legend, text, org, font, fontScale, color, lineThickness, cv2.LINE_AA)
 
   # --------- Show Drone DOWN --------- # 
-  org = (int(0.03*width), int(0.64*height))
+  org = (int(0.03*width), int(0.86*height))
   text = f"DOWN: "
   font = cv2.FONT_HERSHEY_PLAIN
   fontScale = 1
@@ -308,60 +371,43 @@ def visualizeLegend(frame_legend, width, height):
   lineThickness = 2
   frame_legend = cv2.putText(frame_legend, text, org, font, fontScale, color, lineThickness, cv2.LINE_AA)
 
-  # --------- Show Drone Latitude --------- # 
-  org = (int(0.03*width), int(0.675*height))
-  text = f"Latitude0: "
-  font = cv2.FONT_HERSHEY_PLAIN
-  fontScale = 1
-  color = (255, 255, 255)
-  lineThickness = 2
-  frame_legend = cv2.putText(frame_legend, text, org, font, fontScale, color, lineThickness, cv2.LINE_AA)
-  
-  # --------- Show Drone Longitude --------- # 
-  org = (int(0.03*width), int(0.71*height))
-  text = f"Longitude0: "
-  font = cv2.FONT_HERSHEY_PLAIN
-  fontScale = 1
-  color = (255, 255, 255)
-  lineThickness = 2
-  frame_legend = cv2.putText(frame_legend, text, org, font, fontScale, color, lineThickness, cv2.LINE_AA)
-
-  # --------- Show Drone Altitude --------- # 
-  org = (int(0.03*width), int(0.745*height))
-  text = f"Altitude0: "
-  font = cv2.FONT_HERSHEY_PLAIN
-  fontScale = 1
-  color = (255, 255, 255)
-  lineThickness = 2
-  frame_legend = cv2.putText(frame_legend, text, org, font, fontScale, color, lineThickness, cv2.LINE_AA)
-
   # --------- Draw Aruco Legend Outline --------- # 
-  frame_legend = cv2.rectangle(frame_legend, (int(0.02*width), int(0.175*height)), (int(0.165*width), int(0.38*height)), (255, 255, 255), 2)
+  frame_legend = cv2.rectangle(frame_legend, (int(0.02*width), int(0.06*height)), (int(0.22*width), int(0.57*height)), (255, 255, 255), 2)
 
   # --------- Draw Drone Legend Outline --------- # 
-  frame_legend = cv2.rectangle(frame_legend, (int(0.02*width), int(0.43*height)), (int(0.22*width), int(0.82*height)), (255, 255, 255), 2)
+  frame_legend = cv2.rectangle(frame_legend, (int(0.02*width), int(0.63*height)), (int(0.22*width), int(0.88*height)), (255, 255, 255), 2)
 
   # --------- Draw Reference System --------- # 
-  frame_legend = cv2.line(frame_legend,(int(0.05*width), int(0.3*height)), (int(0.09*width), int(0.3*height)), (0, 0, 255), 3)                   # X = red
-  frame_legend = cv2.line(frame_legend,(int(0.05*width), int(0.3*height)), (int(0.05*width), int(0.37*height)), (0, 255, 0), 3)                   # Y = green
-  frame_legend = cv2.circle(frame_legend, (int(0.05*width), int(0.3*height)), 10, (255, 0, 0), 2)                                                 # Z = blue
-  frame_legend = cv2.putText(frame_legend, "X", (int(0.046*width), int(0.309*height)), font, fontScale, (255, 0, 0), lineThickness, cv2.LINE_AA)
-  frame_legend = cv2.putText(frame_legend, "X", (int(0.075*width), int(0.29*height)), font, fontScale, (0, 0, 255), lineThickness, cv2.LINE_AA)
-  frame_legend = cv2.putText(frame_legend, "Y", (int(0.033*width), int(0.36*height)), font, fontScale, (0, 255, 0), lineThickness, cv2.LINE_AA)
-  frame_legend = cv2.putText(frame_legend, "Z", (int(0.03*width), int(0.285*height)), font, fontScale, (255, 0, 0), lineThickness, cv2.LINE_AA)
+  frame_legend = cv2.line(frame_legend,(int(0.05*width), int(0.155*height)), (int(0.09*width), int(0.155*height)), (0, 0, 255), 3)                   # X = red
+  frame_legend = cv2.line(frame_legend,(int(0.05*width), int(0.155*height)), (int(0.05*width), int(0.225*height)), (0, 255, 0), 3)                   # Y = green
+  frame_legend = cv2.circle(frame_legend, (int(0.05*width), int(0.155*height)), 10, (255, 0, 0), 2)                                                 # Z = blue
+  frame_legend = cv2.putText(frame_legend, "X", (int(0.046*width), int(0.164*height)), font, fontScale, (255, 0, 0), lineThickness, cv2.LINE_AA)
+  frame_legend = cv2.putText(frame_legend, "X", (int(0.075*width), int(0.145*height)), font, fontScale, (0, 0, 255), lineThickness, cv2.LINE_AA)
+  frame_legend = cv2.putText(frame_legend, "Y", (int(0.033*width), int(0.215*height)), font, fontScale, (0, 255, 0), lineThickness, cv2.LINE_AA)
+  frame_legend = cv2.putText(frame_legend, "Z", (int(0.03*width), int(0.140*height)), font, fontScale, (255, 0, 0), lineThickness, cv2.LINE_AA)
 
   return frame_legend
 
                           # FUNCTION -> VISUALISE X, Y, Z ARUCO MARKER POSITION #
 # ------------------------------------------------------------------------------------------------------- #
 def visualiseArucoXYZMarkerPosition(X_visual, Y_visual, Z_visual, frame_pos, width, height, r, t, C, d):
-  # --------- Create Projection from 3D to 2D --------- # 
+# --------- Create Projection from 3D to 2D --------- # 
   axes_3D = np.float32([[1, 0, 0], [0, -1, 0], [0, 0, -1], [0, 0, 0]]).reshape(-1, 3)    # Points in 3D space
   axisPoints, _ = cv2.projectPoints(axes_3D, r, t, C, d)                                 # Project 3D points into 2D image plane
 
-  # --------- Create X-Marker Position Visualisation --------- # 
-  org_1 = (int(width/1.99), int(axisPoints[3][0][1]))   # Show X value on frame -> if positive show green, else show red
-  text_1 = f"X: {round(X_visual, 1)}[m]"
+  # --------- Create X Marker Position Visualisation --------- # 
+  X_start_Xline = width/2
+  Y_start_Xline = axisPoints[3][0][1]
+  X_end_Xline =  axisPoints[3][0][0]
+  Y_end_Xline =  axisPoints[3][0][1]
+  
+  if X_visual >= 0:      # If postive X value -> show green 
+    cv2.line(frame_pos, (int(X_start_Xline), int(Y_start_Xline)), (int(X_end_Xline), int(Y_end_Xline)), (0, 255, 0), 3)
+  else:                  # Else -> show red 
+    cv2.line(frame_pos, (int(X_start_Xline), int(Y_start_Xline)), (int(X_end_Xline), int(Y_end_Xline)), (0, 0, 255), 3)
+
+  org_1 = (int(width/2), int(axisPoints[3][0][1]))   # Show X value on frame -> if positive show green, else show red
+  text_1 = f"X: {round(X_visual, 2)}[m]"
   font_1 = cv2.FONT_HERSHEY_PLAIN
   fontScale_1 = 1.5
   lineThickness_1 = 2
@@ -371,9 +417,19 @@ def visualiseArucoXYZMarkerPosition(X_visual, Y_visual, Z_visual, frame_pos, wid
     color_1 = (0, 0, 255)
   cv2.putText(frame_pos, text_1, org_1, font_1, fontScale_1, color_1, lineThickness_1, cv2.LINE_AA)
 
-  # --------- Create Y-Marker Position Visualisation --------- # 
+  # --------- Create Y Marker Position Visualisation --------- # 
+  X_start_Yline = width/2
+  Y_start_Yline = height/2
+  X_end_Yline =  width/2
+  Y_end_Yline =  axisPoints[3][0][1]
+  
+  if Y_visual >= 0:    # If postive Y-value -> show green 
+    cv2.line(frame_pos, (int(X_start_Yline), int(Y_start_Yline)), (int(X_end_Yline), int(Y_end_Yline)), (0, 255, 0), 3)
+  else:                # Else -> show red 
+    cv2.line(frame_pos, (int(X_start_Yline), int(Y_start_Yline)), (int(X_end_Yline), int(Y_end_Yline)), (0, 0, 255), 3)
+
   org_2 = (int(width/2), int(height/2))    # Show Y value on frame -> if positive show green, else show red
-  text_2 = f"Y: {round(Y_visual, 1)}[m]"
+  text_2 = f"Y: {round(Y_visual, 2)}[m]"
   font_2 = cv2.FONT_HERSHEY_PLAIN
   fontScale_2 = 1.5
   lineThickness_2 = 2
@@ -382,10 +438,10 @@ def visualiseArucoXYZMarkerPosition(X_visual, Y_visual, Z_visual, frame_pos, wid
   else:
     color_2 = (0, 0, 255)
   cv2.putText(frame_pos, text_2, org_2, font_2, fontScale_2, color_2, lineThickness_2, cv2.LINE_AA)
-
-  # --------- Aruco Z Visualisation --------- # 
-  org_3 = (int(0.1*width), int(0.205*height))
-  text_3 = f" {round(Z_visual, 1)}[m]"
+  
+  # --------- Aruco DOWN Visualisation --------- # 
+  org_3 = (int(0.11*width), int(0.09*height))
+  text_3 = f" {round(Z_visual, 2)}[m]"
   font_3 = cv2.FONT_HERSHEY_PLAIN
   fontScale_3 = 1
   color_3 = (255, 255, 255)
@@ -401,101 +457,137 @@ def visualiseArucoXYZMarkerPosition(X_visual, Y_visual, Z_visual, frame_pos, wid
 
   return frame_pos
 
-                                # FUNCTION -> VISUALISE NED MARKER POSITION #
+                                # FUNCTION -> VISUALISE BODY ARUCO POSITION #
 # ------------------------------------------------------------------------------------------------------- #
-def visualiseArucoNEDMarkerPosition(NORTH_visual, EAST_visual, DOWN_visual, frame_pos, width, height, r, t, C, d):
-    # --------- Create Projection from 3D to 2D --------- # 
-  axes_3D = np.float32([[1, 0, 0], [0, -1, 0], [0, 0, -1], [0, 0, 0]]).reshape(-1, 3)    # Points in 3D space
-  axisPoints, _ = cv2.projectPoints(axes_3D, r, t, C, d)                                 # Project 3D points into 2D image plane
-
-  # --------- Create NORTH Marker Position Visualisation --------- # 
-  X_start_Xline = width/2
-  Y_start_Xline = axisPoints[3][0][1]
-  X_end_Xline =  axisPoints[3][0][0]
-  Y_end_Xline =  axisPoints[3][0][1]
+def visualiseArucoBODYMarkerPosition(X_B_visual, Y_B_visual, frame_pos, width, height):
+  # --------- Drone X_B Visualisation --------- # 
+  if X_B_visual >= 0:    # If postive X_B value -> show green 
+    org_3 = (int(0.11*width), int(0.27*height))
+    text_3 = f" {round(X_B_visual, 2)}[m]"
+    font_3 = cv2.FONT_HERSHEY_PLAIN
+    fontScale_3 = 1
+    lineThickness_3 = 2
+    cv2.putText(frame_pos, text_3, org_3, font_3, fontScale_3, (0, 255, 0), lineThickness_3, cv2.LINE_AA)
+  else:                   # Else -> show red 
+    org_3 = (int(0.11*width), int(0.27*height))
+    text_3 = f" {round(X_B_visual, 2)}[m]"
+    font_3 = cv2.FONT_HERSHEY_PLAIN
+    fontScale_3 = 1
+    lineThickness_3 = 2
+    cv2.putText(frame_pos, text_3, org_3, font_3, fontScale_3, (0, 0, 255), lineThickness_3, cv2.LINE_AA)
   
-  if NORTH_visual >= 0:  # If postive NORTH value -> show green 
-    cv2.line(frame_pos, (int(X_start_Xline), int(Y_start_Xline)), (int(X_end_Xline), int(Y_end_Xline)), (0, 255, 0), 3)
-  else:                  # Else -> show red 
-    cv2.line(frame_pos, (int(X_start_Xline), int(Y_start_Xline)), (int(X_end_Xline), int(Y_end_Xline)), (0, 0, 255), 3)
-
-  org_1 = (int(width/1.99), int(axisPoints[3][0][1]/0.9))   # Show X value on frame -> if positive show green, else show red
-  text_1 = f"NORTH: {round(NORTH_visual, 1)}[m]"
-  font_1 = cv2.FONT_HERSHEY_PLAIN
-  fontScale_1 = 1.5
-  lineThickness_1 = 2
-  if NORTH_visual >= 0:
-    color_1 = (0, 255, 0)
-  else:
-    color_1 = (0, 0, 255)
-  cv2.putText(frame_pos, text_1, org_1, font_1, fontScale_1, color_1, lineThickness_1, cv2.LINE_AA)
-
-  # --------- Create EAST Marker Position Visualisation --------- # 
-  X_start_Yline = width/2
-  Y_start_Yline = height/2
-  X_end_Yline =  width/2
-  Y_end_Yline =  axisPoints[3][0][1]
-  
-  if EAST_visual >= 0: # If postive X-value -> show green 
-    cv2.line(frame_pos, (int(X_start_Yline), int(Y_start_Yline)), (int(X_end_Yline), int(Y_end_Yline)), (0, 255, 0), 3)
-  else:                # Else -> show red 
-    cv2.line(frame_pos, (int(X_start_Yline), int(Y_start_Yline)), (int(X_end_Yline), int(Y_end_Yline)), (0, 0, 255), 3)
-
-  org_2 = (int(width/2), int(height/1.88))    # Show Y value on frame -> if positive show green, else show red
-  text_2 = f"EAST: {round(EAST_visual, 1)}[m]"
-  font_2 = cv2.FONT_HERSHEY_PLAIN
-  fontScale_2 = 1.5
-  lineThickness_2 = 2
-  if EAST_visual >= 0:
-    color_2 = (0, 255, 0)
-  else:
-    color_2 = (0, 0, 255)
-  cv2.putText(frame_pos, text_2, org_2, font_2, fontScale_2, color_2, lineThickness_2, cv2.LINE_AA)
-  
-  # --------- Aruco DOWN Visualisation --------- # 
-  org_3 = (int(0.1*width), int(0.23*height))
-  text_3 = f" {round(DOWN_visual, 1)}[m]"
-  font_3 = cv2.FONT_HERSHEY_PLAIN
-  fontScale_3 = 1
-  color_3 = (255, 255, 255)
-  lineThickness_3 = 2
-  cv2.putText(frame_pos, text_3, org_3, font_3, fontScale_3, color_3, lineThickness_3, cv2.LINE_AA)
+  # --------- Drone Y_B Visualisation --------- # 
+  if Y_B_visual >= 0:    # If postive Y_B value -> show green 
+    org_3 = (int(0.11*width), int(0.31*height))
+    text_3 = f" {round(Y_B_visual, 2)}[m]"
+    font_3 = cv2.FONT_HERSHEY_PLAIN
+    fontScale_3 = 1
+    lineThickness_3 = 2
+    cv2.putText(frame_pos, text_3, org_3, font_3, fontScale_3, (0, 255, 0), lineThickness_3, cv2.LINE_AA)
+  else:                   # Else -> show red 
+    org_3 = (int(0.11*width), int(0.31*height))
+    text_3 = f" {round(Y_B_visual, 2)}[m]"
+    font_3 = cv2.FONT_HERSHEY_PLAIN
+    fontScale_3 = 1
+    lineThickness_3 = 2
+    cv2.putText(frame_pos, text_3, org_3, font_3, fontScale_3, (0, 0, 255), lineThickness_3, cv2.LINE_AA)
 
   return frame_pos
 
+                                # FUNCTION -> VISUALISE NED ARUCO POSITION #
+# ------------------------------------------------------------------------------------------------------- #
+def visualiseArucoNEDMarkerPosition(NORTH_visual, EAST_visual, frame_pos, width, height):
+  # --------- Drone NORTH Visualisation --------- # 
+  if NORTH_visual >= 0:    # If postive NORTH value -> show green 
+    org_3 = (int(0.11*width), int(0.35*height))
+    text_3 = f" {round(NORTH_visual, 2)}[m]"
+    font_3 = cv2.FONT_HERSHEY_PLAIN
+    fontScale_3 = 1
+    lineThickness_3 = 2
+    cv2.putText(frame_pos, text_3, org_3, font_3, fontScale_3, (0, 255, 0), lineThickness_3, cv2.LINE_AA)
+  else:                   # Else -> show red 
+    org_3 = (int(0.11*width), int(0.35*height))
+    text_3 = f" {round(NORTH_visual, 2)}[m]"
+    font_3 = cv2.FONT_HERSHEY_PLAIN
+    fontScale_3 = 1
+    lineThickness_3 = 2
+    cv2.putText(frame_pos, text_3, org_3, font_3, fontScale_3, (0, 0, 255), lineThickness_3, cv2.LINE_AA)
+  
+  # --------- Drone EAST Visualisation --------- # 
+  if EAST_visual >= 0:    # If postive EAST value -> show green 
+    org_3 = (int(0.11*width), int(0.39*height))
+    text_3 = f" {round(EAST_visual, 2)}[m]"
+    font_3 = cv2.FONT_HERSHEY_PLAIN
+    fontScale_3 = 1
+    lineThickness_3 = 2
+    cv2.putText(frame_pos, text_3, org_3, font_3, fontScale_3, (0, 255, 0), lineThickness_3, cv2.LINE_AA)
+  else:                   # Else -> show red 
+    org_3 = (int(0.11*width), int(0.39*height))
+    text_3 = f" {round(EAST_visual, 2)}[m]"
+    font_3 = cv2.FONT_HERSHEY_PLAIN
+    fontScale_3 = 1
+    lineThickness_3 = 2
+    cv2.putText(frame_pos, text_3, org_3, font_3, fontScale_3, (0, 0, 255), lineThickness_3, cv2.LINE_AA)
+
+  return frame_pos
+
+                               # FUNCTION -> VISUALISE FILTERED NED ARUCO POSITION #
+# ------------------------------------------------------------------------------------------------------- #
+def visualiseArucoFNEDMarkerPosition(NORTH_visual, EAST_visual, frame_pos, width, height):
+  # --------- Drone NORTH Visualisation --------- # 
+  if NORTH_visual >= 0:    # If postive NORTH value -> show green 
+    org_3 = (int(0.11*width), int(0.43*height))
+    text_3 = f" {round(NORTH_visual, 2)}[m]"
+    font_3 = cv2.FONT_HERSHEY_PLAIN
+    fontScale_3 = 1
+    lineThickness_3 = 2
+    cv2.putText(frame_pos, text_3, org_3, font_3, fontScale_3, (0, 255, 0), lineThickness_3, cv2.LINE_AA)
+  else:                   # Else -> show red 
+    org_3 = (int(0.11*width), int(0.43*height))
+    text_3 = f" {round(NORTH_visual, 2)}[m]"
+    font_3 = cv2.FONT_HERSHEY_PLAIN
+    fontScale_3 = 1
+    lineThickness_3 = 2
+    cv2.putText(frame_pos, text_3, org_3, font_3, fontScale_3, (0, 0, 255), lineThickness_3, cv2.LINE_AA)
+  
+  # --------- Drone EAST Visualisation --------- # 
+  if EAST_visual >= 0:    # If postive EAST value -> show green 
+    org_3 = (int(0.11*width), int(0.47*height))
+    text_3 = f" {round(EAST_visual, 2)}[m]"
+    font_3 = cv2.FONT_HERSHEY_PLAIN
+    fontScale_3 = 1
+    lineThickness_3 = 2
+    cv2.putText(frame_pos, text_3, org_3, font_3, fontScale_3, (0, 255, 0), lineThickness_3, cv2.LINE_AA)
+  else:                   # Else -> show red 
+    org_3 = (int(0.11*width), int(0.47*height))
+    text_3 = f" {round(EAST_visual, 2)}[m]"
+    font_3 = cv2.FONT_HERSHEY_PLAIN
+    fontScale_3 = 1
+    lineThickness_3 = 2
+    cv2.putText(frame_pos, text_3, org_3, font_3, fontScale_3, (0, 0, 255), lineThickness_3, cv2.LINE_AA)
+
+  return frame_pos
                           # FUNCTION -> VISUALISE LAT, LONG, ALT ARUCO MARKER POSITION #
 # ------------------------------------------------------------------------------------------------------- #
-def visualiseArucoGeodeticMarkerPosition(LAT_visual, LONG_visual, ALT_visual, frame_pos, width, height, r, t, C, d):
-  # --------- Create Projection from 3D to 2D --------- # 
-  axes_3D = np.float32([[1, 0, 0], [0, -1, 0], [0, 0, -1], [0, 0, 0]]).reshape(-1, 3)    # Points in 3D space
-  axisPoints, _ = cv2.projectPoints(axes_3D, r, t, C, d)                                 # Project 3D points into 2D image plane
-
-  # --------- Create LATITUDE Marker Position Visualisation --------- # 
-  org_1 = (int(width/1.99), int(axisPoints[3][0][1]/0.8))   # Show LAT value on frame
-  text_1 = f"Latitude: {round(LAT_visual, 4)}[deg.]"
-  font_1 = cv2.FONT_HERSHEY_PLAIN
-  fontScale_1 = 1.5
-  lineThickness_1 = 2
-  color_1 = (255, 255, 255)
-  cv2.putText(frame_pos, text_1, org_1, font_1, fontScale_1, color_1, lineThickness_1, cv2.LINE_AA)
+def visualiseArucoGeodeticMarkerPosition(LAT_visual, LONG_visual, ALT_visual, frame_pos, width, height):
+    # --------- Create LATITUDE Marker Position Visualisation --------- # 
+  org = (int(0.11*width), int(0.51*height))
+  text = f" {round(LAT_visual, 4)}[deg.]"
+  font = cv2.FONT_HERSHEY_PLAIN
+  fontScale = 1
+  color = (255, 255, 255)
+  lineThickness = 2
+  cv2.putText(frame_pos, text, org, font, fontScale, color, lineThickness, cv2.LINE_AA)
 
   # --------- Create LONGITUDE Position Visualisation --------- # 
-  org_2 = (int(width/2), int(height/1.78))    # Show LONG value on frame
-  text_2 = f"Longitude: {round(LONG_visual, 4)}[deg]"
-  font_2 = cv2.FONT_HERSHEY_PLAIN
-  fontScale_2 = 1.5
-  lineThickness_2 = 2
-  color_2 = (255, 255, 255)
-  cv2.putText(frame_pos, text_2, org_2, font_2, fontScale_2, color_2, lineThickness_2, cv2.LINE_AA)
+  org_1 = (int(0.11*width), int(0.55*height))
+  text_1 = f" {round(LONG_visual, 4)}[deg.]"
+  cv2.putText(frame_pos, text_1, org_1, font, fontScale, color, lineThickness, cv2.LINE_AA)
 
   # --------- Aruco ALTITUDE Visualisation --------- # 
-  org_3 = (int(0.1*width), int(0.255*height))
-  text_3 = f" {round(ALT_visual, 1)}[m]"
-  font_3 = cv2.FONT_HERSHEY_PLAIN
-  fontScale_3 = 1
-  color_3 = (255, 255, 255)
-  lineThickness_3 = 2
-  cv2.putText(frame_pos, text_3, org_3, font_3, fontScale_3, color_3, lineThickness_3, cv2.LINE_AA)
+  org_2 = (int(0.11*width), int(0.115*height))
+  text_2 = f" {round(ALT_visual, 2)}[m]"
+  cv2.putText(frame_pos, text_2, org_2, font, fontScale, color, lineThickness, cv2.LINE_AA)
 
   return frame_pos
 
@@ -507,42 +599,30 @@ def visualiseDroneAttitude(frame_attitude, width, height, pitch_visual, roll_vis
   color = (255, 255, 255)
   lineThickness = 2
   
-  org_1 = (int(0.03*width), int(0.465*height))
-  text_1 = f"Pitch: "
-  frame_attitude = cv2.putText(frame_attitude, text_1, org_1, font, fontScale, color, lineThickness, cv2.LINE_AA)
-
-  org_2 = (int(0.03*width), int(0.5*height))
-  text_2 = f"Roll: "
-  frame_attitude = cv2.putText(frame_attitude, text_2, org_2, font, fontScale, color, lineThickness, cv2.LINE_AA)
-
-  org_3 = (int(0.03*width), int(0.535*height))
-  text_3 = f"Yaw: "
-  frame_attitude = cv2.putText(frame_attitude, text_3, org_3, font, fontScale, color, lineThickness, cv2.LINE_AA)
-
   if pitch_visual >= 0:   # If postive pitch value -> show green 
-    org_1 = (int(0.11*width), int(0.465*height))
+    org_1 = (int(0.11*width), int(0.66*height))
     text_1 = f" {round(pitch_visual, 2)}[deg.]"
     frame_attitude = cv2.putText(frame_attitude, text_1, org_1, font, fontScale, (0, 255, 0), lineThickness, cv2.LINE_AA)
   else:                   # Else -> show red 
-    org_1 = (int(0.11*width), int(0.465*height))
+    org_1 = (int(0.11*width), int(0.66*height))
     text_1 = f" {round(pitch_visual, 2)}[deg.]"
     frame_attitude = cv2.putText(frame_attitude, text_1, org_1, font, fontScale, (0, 0, 255), lineThickness, cv2.LINE_AA)
 
   if roll_visual >= 0:    # If postive roll value -> show green 
-    org_2 = (int(0.11*width), int(0.5*height))
+    org_2 = (int(0.11*width), int(0.7*height))
     text_2 = f" {round(roll_visual, 2)}[deg.]"
     frame_attitude = cv2.putText(frame_attitude, text_2, org_2, font, fontScale, (0, 255, 0), lineThickness, cv2.LINE_AA)
   else:                   # Else -> show red 
-    org_2 = (int(0.11*width), int(0.5*height))
+    org_2 = (int(0.11*width), int(0.7*height))
     text_2 = f" {round(roll_visual, 2)}[deg.]"
     frame_attitude = cv2.putText(frame_attitude, text_2, org_2, font, fontScale, (0, 0, 255), lineThickness, cv2.LINE_AA)
   
   if yaw_visual >= 0:    # If postive yaw value -> show green 
-    org_3 = (int(0.11*width), int(0.535*height))
+    org_3 = (int(0.11*width), int(0.74*height))
     text_3 = f" {round(yaw_visual, 2)}[deg.]"
     frame_attitude = cv2.putText(frame_attitude, text_3, org_3, font, fontScale, (0, 255, 0), lineThickness, cv2.LINE_AA)
   else:                   # Else -> show red 
-    org_3 = (int(0.11*width), int(0.535*height))
+    org_3 = (int(0.11*width), int(0.74*height))
     text_3 = f" {round(yaw_visual, 2)}[deg.]"
     frame_attitude = cv2.putText(frame_attitude, text_3, org_3, font, fontScale, (0, 0, 255), lineThickness, cv2.LINE_AA)
 
@@ -553,14 +633,14 @@ def visualiseDroneAttitude(frame_attitude, width, height, pitch_visual, roll_vis
 def visualiseDroneNEDPosition(NORTH_visual, EAST_visual, DOWN_visual, frame_pos, width, height):
   # --------- Drone NORTH Visualisation --------- # 
   if NORTH_visual >= 0:    # If postive NORTH value -> show green 
-    org_3 = (int(0.11*width), int(0.57*height))
+    org_3 = (int(0.11*width), int(0.78*height))
     text_3 = f" {round(NORTH_visual, 2)}[m]"
     font_3 = cv2.FONT_HERSHEY_PLAIN
     fontScale_3 = 1
     lineThickness_3 = 2
     cv2.putText(frame_pos, text_3, org_3, font_3, fontScale_3, (0, 255, 0), lineThickness_3, cv2.LINE_AA)
   else:                   # Else -> show red 
-    org_3 = (int(0.11*width), int(0.57*height))
+    org_3 = (int(0.11*width), int(0.78*height))
     text_3 = f" {round(NORTH_visual, 2)}[m]"
     font_3 = cv2.FONT_HERSHEY_PLAIN
     fontScale_3 = 1
@@ -569,14 +649,14 @@ def visualiseDroneNEDPosition(NORTH_visual, EAST_visual, DOWN_visual, frame_pos,
   
   # --------- Drone EAST Visualisation --------- # 
   if EAST_visual >= 0:    # If postive EAST value -> show green 
-    org_3 = (int(0.11*width), int(0.605*height))
+    org_3 = (int(0.11*width), int(0.82*height))
     text_3 = f" {round(EAST_visual, 2)}[m]"
     font_3 = cv2.FONT_HERSHEY_PLAIN
     fontScale_3 = 1
     lineThickness_3 = 2
     cv2.putText(frame_pos, text_3, org_3, font_3, fontScale_3, (0, 255, 0), lineThickness_3, cv2.LINE_AA)
   else:                   # Else -> show red 
-    org_3 = (int(0.11*width), int(0.605*height))
+    org_3 = (int(0.11*width), int(0.82*height))
     text_3 = f" {round(EAST_visual, 2)}[m]"
     font_3 = cv2.FONT_HERSHEY_PLAIN
     fontScale_3 = 1
@@ -584,44 +664,12 @@ def visualiseDroneNEDPosition(NORTH_visual, EAST_visual, DOWN_visual, frame_pos,
     cv2.putText(frame_pos, text_3, org_3, font_3, fontScale_3, (0, 0, 255), lineThickness_3, cv2.LINE_AA)
   
   # --------- Drone DOWN Visualisation --------- # 
-  org_3 = (int(0.11*width), int(0.64*height))
+  org_3 = (int(0.11*width), int(0.86*height))
   text_3 = f" {round(DOWN_visual, 2)}[m]"
   font_3 = cv2.FONT_HERSHEY_PLAIN
   fontScale_3 = 1
   lineThickness_3 = 2
   cv2.putText(frame_pos, text_3, org_3, font_3, fontScale_3, (255, 255, 255), lineThickness_3, cv2.LINE_AA)
- 
-  return frame_pos
-
-                                 # FUNCTION -> VISUALISE REF GEODETIC POSITION #
-# ------------------------------------------------------------------------------------------------------- #
-def visualiseDroneGeodeticPosition(LAT_visual, LONG_visual, ALT_visual, frame_pos, width, height):
-# --------- Show Drone Ref Latitude --------- # 
-  org = (int(0.11*width), int(0.675*height))
-  text = f" {round(LAT_visual, 4)}[deg.]"
-  font = cv2.FONT_HERSHEY_PLAIN
-  fontScale = 1
-  color = (255, 255, 255)
-  lineThickness = 2
-  frame_pos = cv2.putText(frame_pos, text, org, font, fontScale, color, lineThickness, cv2.LINE_AA)
-  
-  # --------- Show Drone Ref Longitude --------- # 
-  org = (int(0.11*width), int(0.71*height))
-  text = f" {round(LONG_visual, 4)}[deg.]"
-  font = cv2.FONT_HERSHEY_PLAIN
-  fontScale = 1
-  color = (255, 255, 255)
-  lineThickness = 2
-  frame_pos = cv2.putText(frame_pos, text, org, font, fontScale, color, lineThickness, cv2.LINE_AA)
-
-  # --------- Show Drone Ref Altitude --------- # 
-  org = (int(0.11*width), int(0.745*height))
-  text = f" {round(ALT_visual, 2)}[m]"
-  font = cv2.FONT_HERSHEY_PLAIN
-  fontScale = 1
-  color = (255, 255, 255)
-  lineThickness = 2
-  frame_pos = cv2.putText(frame_pos, text, org, font, fontScale, color, lineThickness, cv2.LINE_AA)
  
   return frame_pos
 
@@ -653,12 +701,12 @@ def timeout(timeout_duration=1):
 
   try:
     # --------- Read Frame-by-Frame --------- # 
-    # print("STEP 5 -> Start receiving frame")
     ret, frame = cap.read()
-    # print("STEP 5 -> Grabbed frame")
 
   except TimeoutError as exc:
-    print("Timeout")
+    print("-------------------------------") 
+    print("Error: Frame TIMEOUT")
+    print("-------------------------------") 
     ret = False
     frame = None
 
@@ -687,27 +735,21 @@ def move_waypoint_RAW(ac_id, wp_id, aruco_lat, aruco_long, aruco_alt):
     msg['alt'] = aruco_alt
     ivy.send(msg)
 
-
-ac_id = input("What Aicraft ID is it being used: ")
+ac_id = input("Enter Aicraft ID: ")
 
                                               # VIDEO #
 # ------------------------------------------------------------------------------------------------------- #
 # --------- Load Video --------- #
 # cap = cv2.VideoCapture("rtsp://192.168.43.1:8554/fpv_stream") # Create a VideoCapture object (input is for herelink wifi connection)
-print("Starting videoCapture object")
 cap = cv2.VideoCapture("rtsp://192.168.42.129:8554/fpv_stream") # Create a VideoCapture object (input is for herelink bluetooth tethering)
-print("Finished videoCapture object")
-# path = './Live_Videos/IMAV_12_09_23_TEST52_CompleteV3.mp4'        # Define video path	
-# path = '~/IMAV2023/Aruco_Marker_Data/06_07_2023/Videos/2023_0706_001.MP4'    # Define video path	
+FPS = cap.get(cv2.CAP_PROP_FPS)                                 # Read FPS from input video
 
-# cap = cv2.VideoCapture(path)    
-FPS = cap.get(cv2.CAP_PROP_FPS)                                                          # Read FPS from input video
 if FPS == 0:
     print("Error: FPS is 0")
     quit()
 
 # --------- Functioning? --------- #
-if (cap.isOpened()== False):                                                             # Check if camera opened successfully
+if (cap.isOpened()== False):                                    # Check if camera opened successfully
   print("Error: cannot open video file or stream")
  
 # --------- Resolution --------- #
@@ -715,13 +757,9 @@ frame_width = int(cap.get(3))
 frame_height = int(cap.get(4))
 
 # --------- Write Video Setup --------- #
-fourcc = cv2.VideoWriter_fourcc('m','p','4','v')                                                     # Define video codec (FOURCC code)
-# out = cv2.VideoWriter('/home/kevin/IMAV2023/Live_Videos/IMAV_12_09_23_TEST_NOTHING_CompleteV3.mp4', 
-#                       fourcc, FPS, (1152, 648))                                      # Create VideoWriter object 
-
-# UNCOMMENT FOR ALESSANDROS LAPTOP:
-# out = cv2.VideoWriter('./Live_Videos/IMAV_11_09_23_TEST1_CompleteV3.mp4', 
-#                       fourcc, FPS, (1152, 648))                                      # Create VideoWriter object 
+fourcc = cv2.VideoWriter_fourcc('m','p','4','v')                                             # Define video codec (FOURCC code)
+out = cv2.VideoWriter('./Live_Videos/IMAV_13_09_23_TEST1_CompleteV3.mp4', 
+                      fourcc, FPS, (1152, 648))                                              # Create VideoWriter object 
 
                                     # ARUCO MARKER DETECTION SETUP #
 # ------------------------------------------------------------------------------------------------------- #
@@ -767,6 +805,9 @@ while(cap.isOpened()):
   current_time = live_time - start_time
   time_m.append(current_time)
 
+  # --------- Update Iteration Counter --------- # 
+  C_STEP = C_STEP + 1
+
   # --------- Get Attitude Values from Ivybus --------- # 
   PITCH_DRONE, ROLL_DRONE, YAW_DRONE = get_attitude_values()
   
@@ -777,14 +818,9 @@ while(cap.isOpened()):
   LAT_0, LONG_0, ALT_0 = get_ref_lat_long_alt_values()
 
   # --------- Read Frame-by-Frame --------- # 
-  # print("Receiving frame")
-  # ret, frame = cap.read()
-  # print("Frame received")
-
   ret, frame = timeout()
 
   if ret == True: # If frame read correctly          
-    # print("ret = True")
     # --------- Resize Frame (Noise Reduction) --------- # 
     scale_percent = 60 # Percent of original size -> At 60%, dim = (1152, 648), min scale_percent = 50%
     resized_frame_width = int(frame_width * scale_percent / 100)
@@ -802,7 +838,7 @@ while(cap.isOpened()):
     # --------- Show Legend --------- # 
     frame = visualizeLegend(frame, resized_frame_width, resized_frame_height)
 
-    # --------- Show Drone Attitude --------- # 
+    # --------- Save, Print, and Show Drone Attitude --------- # 
     if PITCH_DRONE is not None:
       PITCH_DRONE = float(PITCH_DRONE)
       ROLL_DRONE  = float(ROLL_DRONE)
@@ -813,12 +849,18 @@ while(cap.isOpened()):
       YAW_DRONE   = YAW_DRONE*pprz_attitude_conversion 
 
       PITCH_DRONE_m.append(PITCH_DRONE) # Save measured pitch
+      print(f"-------- ITERATION: {C_STEP} --------")      
+      print(f"Drone PITCH: {PITCH_DRONE}")
+
       ROLL_DRONE_m.append(ROLL_DRONE)   # Save measured roll
+      print(f"Drone ROLL: {ROLL_DRONE}")
+
       YAW_DRONE_m.append(YAW_DRONE)     # Save measured yaw
+      print(f"Drone YAW: {YAW_DRONE}")
 
       frame = visualiseDroneAttitude(frame, resized_frame_width, resized_frame_height, PITCH_DRONE, ROLL_DRONE, YAW_DRONE)
 
-    # --------- Save and Print Drone NORTH, EAST, and DOWN --------- # 
+    # --------- Save, Print, and Show Drone NORTH, EAST, and DOWN --------- # 
     if NORTH_DRONE is not None:
       NORTH_DRONE = float(NORTH_DRONE)
       EAST_DRONE  = float(EAST_DRONE)
@@ -826,105 +868,56 @@ while(cap.isOpened()):
 
       NORTH_DRONE = NORTH_DRONE*pprz_NED_conversion
       EAST_DRONE  = EAST_DRONE*pprz_NED_conversion
-      DOWN_DRONE  = DOWN_DRONE*pprz_NED_conversion # Drone sends UP value, so negate axis
+      DOWN_DRONE  = DOWN_DRONE*pprz_NED_conversion 
 
       NORTH_DRONE_m.append(NORTH_DRONE) # Save measured drone NORTH
-      # print(f"Drone NORTH: {NORTH_DRONE}")
+      print(f"Drone NORTH: {NORTH_DRONE}")
       
       EAST_DRONE_m.append(EAST_DRONE)   # Save measured drone EAST
-      # print(f"Drone EAST: {EAST_DRONE}")      
+      print(f"Drone EAST: {EAST_DRONE}")      
       
       DOWN_DRONE_m.append(DOWN_DRONE)   # Save measured drone DOWN
-      # print(f"Drone DOWN: {DOWN_DRONE}")
+      print(f"Drone DOWN: {DOWN_DRONE}")
       
       # --------- Visualise NED Drone Position --------- # 
       frame = visualiseDroneNEDPosition(NORTH_DRONE, EAST_DRONE, DOWN_DRONE, frame, resized_frame_width, resized_frame_height)
 
+    # --------- FLAG -> Aruco Marker Not Detected --------- # 
     DETECTION = 0
 
     if len(markerCorners) > 0: # At least one marker detected
-      # --------- Update Iteration Counter --------- # 
-      C_STEP = C_STEP + 1
-
       # --------- Aruco Marker Pose Estimation --------- # 
-      rvec = np.zeros([1, 3])
-      tvec = np.zeros([1, 3])
-      rvec, tvec, _ = cv2.aruco.estimatePoseSingleMarkers(markerCorners, MARKER_SIZE, camera_Matrix, distortion_Coeff)
-      (rvec - tvec).any()    # Remove Numpy value array error
+      try:
+        rvec, tvec, _ = cv2.aruco.estimatePoseSingleMarkers(markerCorners, MARKER_SIZE, camera_Matrix, distortion_Coeff)
+        # (rvec - tvec).any()    # Remove Numpy value array error
 
-      if rvec is None:
-        print(markerCorners)
-        continue
-
-      if rvec[0][0][0] is None:
-        print(markerCorners)
-        continue
-
-      if rvec[0][0][1] is None:
-        print(markerCorners)
-        continue
-
-      if rvec[0][0][2] is None:
-        print(markerCorners)
-        continue
-      
-      if tvec is None:
-        print(markerCorners)
-        continue
-
-      if tvec[0][0][0] is None:
-        print(markerCorners)
-        continue
-      
-      if tvec[0][0][1] is None:
-        print(markerCorners)
-        continue
-
-      if tvec[0][0][2] is None:
-        print(markerCorners)
-        continue
-
+      except:
+        print("-------------------------------") 
+        print("Error: rvec/tvec empty")
+        print("-------------------------------")
+        continue 
+         
       # --------- Save and Print X, Y, and Z --------- # 
-      # print(f"-------- ITERATION: {C_STEP} --------") 
       X_ARUCO = tvec[0][0][0]
-      # X_ARUCO = X_ARUCO*((scale_percent/100) + scaling_factor_X)
       X_ARUCO_m.append(X_ARUCO)          # Save measured X
-      # print(f"Aruco X: {X_ARUCO}")
+      print(f"Aruco X: {X_ARUCO}")
 
       Y_ARUCO = tvec[0][0][1]
-      # Y_ARUCO = Y_ARUCO*((scale_percent/100) + scaling_factor_Y)
       Y_ARUCO_m.append(Y_ARUCO)          # Save measured Y
-      # print(f"Aruco Y: {Y_ARUCO}")
+      print(f"Aruco Y: {Y_ARUCO}")
 
       Z_ARUCO = tvec[0][0][2]
-      # Z_ARUCO = Z_ARUCO*((scale_percent/100) + scaling_factor_Z)
       Z_ARUCO_m.append(Z_ARUCO)          # Save measured Z
-      # print(f"Aruco Z: {Z_ARUCO}")
+      print(f"Aruco Z: {Z_ARUCO}")
 
       # --------- Visualise X, Y, Z Aruco Marker Position --------- # 
       frame = visualiseArucoXYZMarkerPosition(X_ARUCO, Y_ARUCO, Z_ARUCO, frame, resized_frame_width, resized_frame_height, rvec, tvec, camera_Matrix, distortion_Coeff)
 
-      DETECTION = 0
-
       # --------- NED Conversion and Moving to Relative Position --------- # 
       if PITCH_DRONE is not None: 
-        PITCH_DRONE = float(PITCH_DRONE)
-        ROLL_DRONE  = float(ROLL_DRONE)
-        YAW_DRONE   = float(YAW_DRONE)
-
-        print(YAW_DRONE)
-        
-        # PITCH_DRONE = PITCH_DRONE*pprz_attitude_conversion
-        # ROLL_DRONE  = ROLL_DRONE*pprz_attitude_conversion
-        # YAW_DRONE   = YAW_DRONE*pprz_attitude_conversion 
-
-        print(YAW_DRONE)
-
         PITCH_DRONE = math.radians(PITCH_DRONE)
         ROLL_DRONE  = math.radians(ROLL_DRONE)
         YAW_DRONE   = math.radians(YAW_DRONE)
-
-        print(YAW_DRONE)
 
         # --------- Convert Aruco marker Position in Image Coordinates to Body Coordinates --------- #
         # X (body) = Y (image plane), Y(body) = -X (image plane)
@@ -932,7 +925,10 @@ while(cap.isOpened()):
         Y_ARUCO_B = -X_ARUCO
         Z_ARUCO_B = Z_ARUCO
 
+        # --------- Visualise Body Aruco Marker Position --------- # 
+        frame = visualiseArucoBODYMarkerPosition(X_ARUCO_B, Y_ARUCO_B, frame, resized_frame_width, resized_frame_height)
 
+        # Generate Aruco position row vector
         ARUCO_POSITION_B = np.array([[X_ARUCO_B], [Y_ARUCO_B], [Z_ARUCO_B]])
 
         # --------- Convert Aruco Position in Image Coordinates to NED Coordinates Relative to Drone --------- # 
@@ -942,35 +938,33 @@ while(cap.isOpened()):
         if NORTH_DRONE is not None:
           # --------- NED Relative and NED Drone Summation --------- # 
           NORTH_ARUCO = NORTH_REL + NORTH_DRONE
-          EAST_ARUCO = EAST_REL + EAST_DRONE
-          DOWN_ARUCO = DOWN_REL + DOWN_DRONE
+          EAST_ARUCO  = EAST_REL + EAST_DRONE
+          DOWN_ARUCO  = DOWN_REL + DOWN_DRONE
 
           # --------- Save and Print Aruco Marker NORTH, EAST, and DOWN --------- # 
           NORTH_ARUCO_m.append(NORTH_ARUCO)        # Save measured Aruco Marker NORTH
-          # print(f"Aruco NORTH: {NORTH_ARUCO}")
+          print(f"Aruco NORTH: {NORTH_ARUCO}")
 
           EAST_ARUCO_m.append(EAST_ARUCO)          # Save measured Aruco Marker EAST
-          # print(f"Aruco EAST: {EAST_ARUCO}")
+          print(f"Aruco EAST: {EAST_ARUCO}")
 
           DOWN_ARUCO_m.append(DOWN_ARUCO)          # Save measured Aruco Marker DOWN
-          # print(f"Aruco DOWN: {DOWN_ARUCO}")
+          print(f"Aruco DOWN: {DOWN_ARUCO}")
 
           # --------- Visualise NED Aruco Marker Position --------- # 
-          frame = visualiseArucoNEDMarkerPosition(NORTH_ARUCO, EAST_ARUCO, DOWN_ARUCO, frame, resized_frame_width, resized_frame_height, rvec, tvec, camera_Matrix, distortion_Coeff)
+          frame = visualiseArucoNEDMarkerPosition(NORTH_ARUCO, EAST_ARUCO, frame, resized_frame_width, resized_frame_height)
           
+          # --------- FLAG -> Aruco Marker Detected --------- # 
           DETECTION = 1
-
-    ########################
-    # Filtering
-
-    if IS_FILT_INIT:
-      # FILT_N += 20/15
+                                              # KALMAN FILTER #
+    # ------------------------------------------------------------------------------------------------------- #
+    if IS_FILT_INIT:            # Check if KF is initialised
+      dt = 1/FPS                # Set time step 
       
-      dt = 1/FPS
-      
-      NED_PREDICT = predict(dt)
-      FILT_N = NED_PREDICT[0]
-      FILT_E = NED_PREDICT[1]
+      # --------- PREDICTION STEP --------- # 
+      NED_PRED = predict(dt)
+      FILT_N = NED_PRED[0]
+      FILT_E = NED_PRED[1]
 
       FILT_N = float(FILT_N)
       FILT_E = float(FILT_E)
@@ -979,29 +973,28 @@ while(cap.isOpened()):
       FILT_N_PRED_m.append(FILT_N)
       FILT_E_PRED_m.append(FILT_E)
 
-      # print(FILT_N)
-      # print(FILT_E)  
-
     if DETECTION == 1:
       if not IS_FILT_INIT:
-        # --------- Initialise Kalman filter --------- # 
+        # --------- FILTER INITIALISATION --------- # 
         init([NORTH_ARUCO, EAST_DRONE, DOWN_ARUCO])
         IS_FILT_INIT = True
       else:
-        NED_EST = update([NORTH_ARUCO, EAST_ARUCO, DOWN_ARUCO])
-        FILT_N = NED_EST[0]
-        FILT_E = NED_EST[1]
+        # --------- UPDATE STEP --------- # 
+        NED_UPD = update([NORTH_ARUCO, EAST_ARUCO, DOWN_ARUCO])
+        FILT_N = NED_UPD[0]
+        FILT_E = NED_UPD[1]
         FILT_D = DOWN_ARUCO 
 
         FILT_N = float(FILT_N)
         FILT_E = float(FILT_E)
         
-        FILT_N_EST_m.append(FILT_N)
-        FILT_E_EST_m.append(FILT_E)
+        FILT_N_UPD_m.append(FILT_N)
+        FILT_E_UPD_m.append(FILT_E)
 
-        # print(FILT_N)
-        # print(FILT_E)
+    # --------- Visualise Filtered NED Aruco Marker Position --------- # 
+    frame = visualiseArucoFNEDMarkerPosition(FILT_N, FILT_E, frame, resized_frame_width, resized_frame_height)
 
+    # --------- RAW MEASUREMENTS --------- # 
     FILT_N_RAW = NORTH_ARUCO
     FILT_E_RAW = EAST_ARUCO
     FILT_D_RAW = DOWN_ARUCO
@@ -1017,19 +1010,16 @@ while(cap.isOpened()):
       ALT_0  = ALT_0*pprz_alt_conversion
             
       LAT_0_m.append(LAT_0)             # Save measured drone Ref LAT
-      # print(f"Drone Latitude0: {LAT_0}")
+      print(f"Drone Latitude0: {LAT_0}")
       
       LONG_0_m.append(LONG_0)           # Save measured drone Ref LONG
-      # print(f"Drone Longitude0: {LONG_0}")      
+      print(f"Drone Longitude0: {LONG_0}")      
       
       ALT_0_m.append(ALT_0)             # Save measured drone Ref ALT
-      # print(f"Drone Altitude0: {ALT_0}")
-
-      # --------- Visualise Geodetic Ref Drone Position --------- # 
-      # frame = visualiseDroneGeodeticPosition(LAT_0, LONG_0, ALT_0, frame, resized_frame_width, resized_frame_height)
+      print(f"Drone Altitude0: {ALT_0}")
             
       # --------- Conversion --------- #
-      LAT_ARUCO, LONG_ARUCO, _ = pymap3d.ned2geodetic(FILT_N, FILT_E, FILT_D, LAT_0, LONG_0, ALT_0)
+      LAT_ARUCO, LONG_ARUCO, _         = pymap3d.ned2geodetic(FILT_N, FILT_E, FILT_D, LAT_0, LONG_0, ALT_0)
       LAT_ARUCO_RAW, LONG_ARUCO_RAW, _ = pymap3d.ned2geodetic(FILT_N_RAW, FILT_E_RAW, FILT_D_RAW, LAT_0, LONG_0, ALT_0)
 
       # --------- Altitude --------- #
@@ -1037,24 +1027,24 @@ while(cap.isOpened()):
 
       # --------- Save and Print Aruco Marker NORTH, EAST, and DOWN --------- # 
       LAT_ARUCO_m.append(LAT_ARUCO)            # Save measured Aruco Marker LATITUDE
-      # print(f"Aruco Latitude: {LAT_ARUCO}")
+      print(f"Aruco Latitude: {LAT_ARUCO}")
 
       LONG_ARUCO_m.append(LONG_ARUCO)          # Save measured Aruco Marker LONGITUDE
-      # print(f"Aruco Longitude: {LONG_ARUCO}")
+      print(f"Aruco Longitude: {LONG_ARUCO}")
 
       ALT_ARUCO_m.append(ALT_ARUCO)            # Save measured Aruco Marker ALTITUDE
-      # print(f"Aruco Altitude: {ALT_ARUCO}")
-      # print("-------------------------------") 
+      print(f"Aruco Altitude: {ALT_ARUCO}")
+      print("-------------------------------") 
 
       # --------- Visualise NED Aruco Marker Position --------- # 
-      # frame = visualiseArucoGeodeticMarkerPosition(LAT_ARUCO, LONG_ARUCO, ALT_ARUCO, frame, resized_frame_width, resized_frame_height, rvec, tvec, camera_Matrix, distortion_Coeff)
+      frame = visualiseArucoGeodeticMarkerPosition(LAT_ARUCO, LONG_ARUCO, ALT_ARUCO, frame, resized_frame_width, resized_frame_height)
 
       # --------- Move Waypoint --------- #
       move_waypoint_KF(ac_id, wp_id_KF, LAT_ARUCO, LONG_ARUCO, ALT_ARUCO)
       move_waypoint_RAW(ac_id, wp_id_RAW, LAT_ARUCO_RAW, LONG_ARUCO_RAW, ALT_ARUCO)
       
     # --------- Write Video --------- # 
-    # out.write(frame)
+    out.write(frame)
     
     # --------- Display Output Frame --------- # 
     cv2.imshow('Frame', frame)
@@ -1143,93 +1133,93 @@ while(cap.isOpened()):
 #     writer=csv.writer(csvfile, delimiter=',')
 #     writer.writerows(zip(ALT_0_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_12_09_23_TEST7_ArucoX_V3', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(X_ARUCO_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST1_ArucoX_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(X_ARUCO_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_12_09_23_TEST7_ArucoY_V3', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(Y_ARUCO_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST1_ArucoY_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(Y_ARUCO_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_12_09_23_TEST7_ArucoZ_V3', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(Z_ARUCO_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST1_ArucoZ_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(Z_ARUCO_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_12_09_23_TEST7_ArucoNORTH_V3', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(NORTH_ARUCO_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST1_ArucoNORTH_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(NORTH_ARUCO_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_12_09_23_TEST7_ArucoEAST_V3', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(EAST_ARUCO_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST1_ArucoEAST_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(EAST_ARUCO_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_12_09_23_TEST7_ArucoDOWN_V3', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(DOWN_ARUCO_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST1_ArucoDOWN_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(DOWN_ARUCO_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_12_09_23_TEST7_ArucoLAT_V3', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(LAT_ARUCO_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST1_ArucoLAT_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(LAT_ARUCO_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_12_09_23_TEST7_ArucoLONG_V3', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(LONG_ARUCO_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST1_ArucoLONG_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(LONG_ARUCO_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_12_09_23_TEST7_ArucoALT_V3', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(ALT_ARUCO_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST1_ArucoALT_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(ALT_ARUCO_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_12_09_23_TEST7_FILTER_N_PRED_V3', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(FILT_N_PRED_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST1_FILTER_N_PRED_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(FILT_N_PRED_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_12_09_23_TEST7_FILTER_E_PRED_V3', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(FILT_E_PRED_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST1_FILTER_E_PRED_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(FILT_E_PRED_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_12_09_23_TEST7_FILTER_N_EST_V3', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(FILT_N_EST_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST1_FILTER_N_EST_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(FILT_N_UPD_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_12_09_23_TEST7_FILTER_E_EST_V3', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(FILT_E_EST_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST1_FILTER_E_EST_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(FILT_E_UPD_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_12_09_23_TEST7_DronePitch_V3', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(PITCH_DRONE_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST1_DronePitch_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(PITCH_DRONE_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_12_09_23_TEST7_DroneRoll_V3', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(ROLL_DRONE_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST1_DroneRoll_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(ROLL_DRONE_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_12_09_23_TEST7_DroneYaw_V3', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(YAW_DRONE_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST1_DroneYaw_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(YAW_DRONE_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_12_09_23_TEST7_DroneNORTH_V3', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(NORTH_DRONE_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST1_DroneNORTH_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(NORTH_DRONE_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_12_09_23_TEST7_DroneEAST_V3', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(EAST_DRONE_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST1_DroneEAST_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(EAST_DRONE_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_12_09_23_TEST7_DroneDOWN_V3', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(DOWN_DRONE_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST1_DroneDOWN_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(DOWN_DRONE_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_12_09_23_TEST7_DroneLAT_V3', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(LAT_0_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST1_DroneLAT_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(LAT_0_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_12_09_23_TEST7_DroneLONG_V3', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(LONG_0_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST1_DroneLONG_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(LONG_0_m, time_m))
 
-# with open('./Measured_Variables/Outdoor_Tests/IMAV_12_09_23_TEST7_DroneALT_V3', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(ALT_0_m, time_m))
+with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST1_DroneALT_V3', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(ALT_0_m, time_m))
 
 # --------- Indoor Tests --------- # 
 # with open('~/IMAV2023/Measured_Variables/Indoor_Tests/TEST1_X_V1', 'w') as csvfile:
@@ -1272,7 +1262,7 @@ while(cap.isOpened()):
 # ------------------------------------------------------------------------------------------------------- #
 # --------- Release/Stop Objects --------- # 
 cap.release()
-# out.release()
+out.release()
 ivy.shutdown()
 
 # --------- Close Frames --------- # 

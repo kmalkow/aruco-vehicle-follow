@@ -183,11 +183,11 @@ def predict(dt):
     #     if vision_update_counter == 75:
     #         nr = find_closest_point(x)
 
-        return route()
+    #     return route()
 
-    else:
+    # else:
 
-    # if True:
+    if True:
 
         A = np.asarray([[1,  0,  dt,  0],
                         [0,  1,  0,   dt],
