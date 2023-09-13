@@ -74,7 +74,7 @@ tck1 = interpolate.splrep(x, y[:,0], s=0.001, k=3)
 tck2 = interpolate.splrep(x, y[:,1], s=0.001, k=3)
 
 # 10000 = 4m/s
-x_new = np.linspace(min(x), max(x), 5000)
+x_new = np.linspace(min(x), max(x), 1500)
 y_fitx = interpolate.BSpline(*tck1)(x_new)
 y_fity = interpolate.BSpline(*tck2)(x_new)
 
@@ -145,7 +145,7 @@ P = np.asarray([[K0, 0, 0, 0],
 #print('Q', Q)
 #print('R', R)
 
-KP = 0.4
+KP = 0.6
 KV = 0.01
 
 
