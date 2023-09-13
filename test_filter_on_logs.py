@@ -18,7 +18,7 @@ E = np.loadtxt(f_E, delimiter=",", dtype=str).astype(float)
 tM = N[:,1]
 print("Simulation end time",tM[-1])
 dt = 1.0 / 15.0
-extra_time = 0
+extra_time = 1000
 tsim = np.arange(0,tM[-1]+extra_time,dt)
 
 

@@ -102,8 +102,9 @@ def route():
     if nr >= len(y_fitx):
         nr = 0
 
-    x = [y_fity[nr], y_fitx[nr], 0, 0 ]
-    return x
+    zk = [y_fity[nr], y_fitx[nr], 0, 0 ]
+
+    return zk
 
 
 
@@ -144,8 +145,8 @@ P = np.asarray([[K0, 0, 0, 0],
 #print('Q', Q)
 #print('R', R)
 
-KP = 0.2
-KV = 0.0001
+KP = 0.4
+KV = 0.05
 
 
 
@@ -174,36 +175,38 @@ def predict(dt):
     global vision_update_counter
     global nr
 
+    # Do Kalman predict
+    A = np.asarray([[1,  0,  dt,  0],
+                    [0,  1,  0,   dt],
+                    [0,  0,  1,   0],
+                    [0,  0,  0,   1]] )
+
+    x = A @ x
+    P = ((A @ P) @ A.T) + Q
+
+    # Keep track of the number of predictions since the last update
     vision_update_counter += 1
 
-    # dt = 1.0 / 15.0
+    # On timeout, predict that the car follows the track
+    TIMEOUT_SEC = 5
+    FPS = 15
+    if vision_update_counter == (TIMEOUT_SEC * FPS):
+        # For every ArUco: update the track to the closest point
+        nr = find_closest_point(x)
 
-    # if vision_update_counter >= 75:
-    
-    #     if vision_update_counter == 75:
-    #         nr = find_closest_point(x)
+    if vision_update_counter >= (TIMEOUT_SEC * FPS):
+        # Get the next position on the route as the next measurement
+        z = route()
 
-    #    return route()
+        # Update the filter as if we were following the track
+        update(z, True)
 
-    #else:
-
-    if True:
-
-        A = np.asarray([[1,  0,  dt,  0],
-                        [0,  1,  0,   dt],
-                        [0,  0,  1,   0],
-                        [0,  0,  0,   1]] )
-
-
-        # Kalman predict
-        x = A @ x
-        P = ((A @ P) @ A.T) + Q
 
     return x
 
 
 
-def update(Z):
+def update(Z, route=False):
     global x
     global H
     global R
@@ -212,7 +215,8 @@ def update(Z):
     global KV
     global vision_update_counter
 
-    vision_update_counter = 0
+    if not route:
+        vision_update_counter = 0
 
     zk = np.asarray([[Z[0]],
                      [Z[1]]])
