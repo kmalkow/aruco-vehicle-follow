@@ -74,7 +74,7 @@ tck1 = interpolate.splrep(x, y[:,0], s=0.001, k=3)
 tck2 = interpolate.splrep(x, y[:,1], s=0.001, k=3)
 
 # 10000 = 4m/s
-x_new = np.linspace(min(x), max(x), 10000)
+x_new = np.linspace(min(x), max(x), 5000)
 y_fitx = interpolate.BSpline(*tck1)(x_new)
 y_fity = interpolate.BSpline(*tck2)(x_new)
 
@@ -98,9 +98,9 @@ def route():
     global y_fity
 
     # Hack: move along the track blindly
-    nr += 1
-    if nr >= len(y_fitx):
-        nr = 0
+    nr -= 1
+    if nr <= 0:
+        nr = len(y_fitx) - 1
 
     zk = [y_fity[nr], y_fitx[nr], 0, 0 ]
 
@@ -146,7 +146,7 @@ P = np.asarray([[K0, 0, 0, 0],
 #print('R', R)
 
 KP = 0.4
-KV = 0.05
+KV = 0.01
 
 
 
@@ -193,6 +193,7 @@ def predict(dt):
     if vision_update_counter == (TIMEOUT_SEC * FPS):
         # For every ArUco: update the track to the closest point
         nr = find_closest_point(x)
+        print(nr)
 
     if vision_update_counter >= (TIMEOUT_SEC * FPS):
         # Get the next position on the route as the next measurement

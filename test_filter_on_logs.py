@@ -9,9 +9,11 @@ from filterV1 import init, predict, update
 f_N = open("Measured_Variables/Outdoor_Tests/IMAV_12_09_23_TEST7_DroneNORTH_V3")
 f_E = open("Measured_Variables/Outdoor_Tests/IMAV_12_09_23_TEST7_DroneEAST_V3")
 
-N = np.loadtxt(f_N, delimiter=",", dtype=str).astype(float)
-E = np.loadtxt(f_E, delimiter=",", dtype=str).astype(float)
+E = np.loadtxt(f_N, delimiter=",", dtype=str).astype(float)
+N = np.loadtxt(f_E, delimiter=",", dtype=str).astype(float)
 
+E[:,0] = -E[:,0] - 140
+N[:,0] = -N[:,0] + 100
 
 # SIMULATED MAIN LOOP AT 15Hz
 
@@ -24,6 +26,8 @@ tsim = np.arange(0,tM[-1]+extra_time,dt)
 
 VN = np.ediff1d(N[:,0]) / np.array(dt)
 VE = np.ediff1d(E[:,1]) / np.array(dt)
+
+#print(VN)
 
 # LOGGING FOR PLOT
 pf_N = []
@@ -72,6 +76,7 @@ plt.axis('equal')
 plt.grid()
 plt.show()
 
+Vtot = np.sqrt(VN**2 + VE **2)
 
 fig, axs = plt.subplots(2, 2)
 axs[0, 0].plot(tsim, pf_N)
@@ -87,7 +92,7 @@ axs[1, 0].plot(tM[1:], VN, 'x')
 axs[1, 0].set_title('VN')
 axs[1, 0].grid()
 axs[1, 1].plot(tsim, pf_VE, 'tab:red')
-axs[1, 1].plot(tM[1:], VE, 'x')
+axs[1, 1].plot(tM[1:], Vtot, 'x')
 axs[1, 1].set_title('VE')
 axs[1, 1].grid()
 plt.show()
