@@ -6,8 +6,8 @@ from filterV1 import init, predict, update
 
 # READ LOGFILES
 
-f_N = open("Measured_Variables/Outdoor_Tests/IMAV_11_09_23_TEST1_ArucoNORTH_V3")
-f_E = open("Measured_Variables/Outdoor_Tests/IMAV_11_09_23_TEST1_ArucoEAST_V3")
+f_N = open("Measured_Variables/Outdoor_Tests/IMAV_12_09_23_TEST7_DroneNORTH_V3")
+f_E = open("Measured_Variables/Outdoor_Tests/IMAV_12_09_23_TEST7_DroneEAST_V3")
 
 N = np.loadtxt(f_N, delimiter=",", dtype=str).astype(float)
 E = np.loadtxt(f_E, delimiter=",", dtype=str).astype(float)
@@ -24,9 +24,6 @@ tsim = np.arange(0,tM[-1]+extra_time,dt)
 
 VN = np.ediff1d(N[:,0]) / np.array(dt)
 VE = np.ediff1d(E[:,1]) / np.array(dt)
-
-print(N)
-print(VN)
 
 # LOGGING FOR PLOT
 pf_N = []

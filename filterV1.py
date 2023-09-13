@@ -110,10 +110,10 @@ def route():
 #############################################################################
 ## Kalman filter stuff
 
-x = np.asarray([[start[0]],
-                [start[1]],
-                [0],
-                [0]])
+x = np.asarray([start[0],
+                start[1],
+                0,
+                0])
 
 
 H = np.asarray([[1,  0, 0 ,0],
@@ -183,9 +183,9 @@ def predict(dt):
     #     if vision_update_counter == 75:
     #         nr = find_closest_point(x)
 
-    #     return route()
+    #    return route()
 
-    # else:
+    #else:
 
     if True:
 
