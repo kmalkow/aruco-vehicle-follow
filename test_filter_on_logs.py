@@ -6,21 +6,31 @@ from filterV1 import init, predict, update
 
 # READ LOGFILES
 
-f_N = open("Measured_Variables/Outdoor_Tests/IMAV_12_09_23_TEST7_DroneNORTH_V3")
-f_E = open("Measured_Variables/Outdoor_Tests/IMAV_12_09_23_TEST7_DroneEAST_V3")
+f_N = open("Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST3_DroneNORTH_V3")
+f_E = open("Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST3_DroneEAST_V3")
 
 E = np.loadtxt(f_N, delimiter=",", dtype=str).astype(float)
 N = np.loadtxt(f_E, delimiter=",", dtype=str).astype(float)
 
+
+tstart = 0
+tend = -1
+
+
+N = N[tstart:tend,:]
+E = E[tstart:tend,:]
+
 E[:,0] = -E[:,0] - 110
 N[:,0] = -N[:,0] + 100
+
+print(len(N))
 
 # SIMULATED MAIN LOOP AT 15Hz
 
 tM = N[:,1]
 print("Simulation end time",tM[-1])
 dt = 1.0 / 15.0
-extra_time = 200
+extra_time = 0
 tsim = np.arange(0,tM[-1]+extra_time,dt)
 
 
@@ -88,11 +98,11 @@ axs[0, 1].plot(tM, E[:,0], 'x')
 axs[0, 1].set_title('E')
 axs[0, 1].grid()
 axs[1, 0].plot(tsim, pf_VN, 'tab:green')
-axs[1, 0].plot(tM[1:], VN, 'x')
+#axs[1, 0].plot(tM[1:], VN, 'x')
 axs[1, 0].set_title('VN')
 axs[1, 0].grid()
 axs[1, 1].plot(tsim, pf_VE, 'tab:red')
-axs[1, 1].plot(tM[1:], Vtot, 'x')
+#axs[1, 1].plot(tM[1:], Vtot, 'x')
 axs[1, 1].set_title('VE')
 axs[1, 1].grid()
 plt.show()
