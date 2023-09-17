@@ -106,13 +106,20 @@ def route():
 
     return zk
 
+def determine_distance():
+    global fit
+    dist = 0
+    for i in range(fit.shape[0]-1):
+        dist += np.sqrt((fit[i, 1] - fit[i+1, 1])**2 + (fit[i, 0] - fit[i+1, 0])**2)
+
+    return dist
 
 
 #############################################################################
 ## Kalman filter stuff
 
-x = np.asarray([start[0],
-                start[1],
+x = np.asarray([start[0][0],
+                start[1][0],
                 0,
                 0])
 
