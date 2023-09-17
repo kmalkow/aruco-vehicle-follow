@@ -67,36 +67,36 @@ cv_file.release()
 
                                         # VARIABLE DEFINITION #
 # ------------------------------------------------------------------------------------------------------- #
-MARKER_SIZE = 1.0                     # Size of Aruco marker in [m] -> 1.107 [m]||0.35 [m]
+MARKER_SIZE              = 1.0        # Size of Aruco marker in [m] -> 1.107 [m]||0.35 [m]
 
-PITCH_values = None                   # Global variable to store Ivybus received pitch values
-ROLL_values = None                    # Global variable to store Ivybus received roll values
-YAW_values = None                     # Global variable to store Ivybus received yaw values
+PITCH_values             = None       # Global variable to store Ivybus received pitch values
+ROLL_values              = None       # Global variable to store Ivybus received roll values
+YAW_values               = None       # Global variable to store Ivybus received yaw values
 pprz_attitude_conversion = 0.0139882  # Unit conversion from pprz message to degrees
 
-NORTH_values = None                   # Global variable to store Ivybus received NORTH values
-EAST_values = None                    # Global variable to store Ivybus received EAST values
-DOWN_values = None                    # Global variable to store Ivybus received DOWN values
-pprz_NED_conversion = 0.0039063       # Unit conversion from pprz message to meters
+NORTH_values             = None       # Global variable to store Ivybus received NORTH values
+EAST_values              = None       # Global variable to store Ivybus received EAST values
+UP_values                = None       # Global variable to store Ivybus received UP values
+pprz_NED_conversion      = 0.0039063  # Unit conversion from pprz message to meters
 
-REF_LAT_values = None                 # Global variable to store Ivybus received LATITUDE values
-REF_LONG_values = None                # Global variable to store Ivybus received LONGITUDE values
-REF_ALT_values = None                 # Global variable to store Ivybus received ALTITUDE values
+REF_LAT_values           = None       # Global variable to store Ivybus received LATITUDE values
+REF_LONG_values          = None       # Global variable to store Ivybus received LONGITUDE values
+REF_ALT_values           = None       # Global variable to store Ivybus received ALTITUDE values
 pprz_lat_long_conversion = 0.0000001  # Unit conversion from pprz message to lat, long 
-pprz_alt_conversion = 0.001           # Unit conversion from pprz message to alt 
+pprz_alt_conversion      = 0.001      # Unit conversion from pprz message to alt 
 
-X_ARUCO_m = []                        # Variable to save measured X value
-Y_ARUCO_m = []                        # Variable to save measured Y value
-Z_ARUCO_m = []                        # Variable to save measured Z value
+X_ARUCO_m     = []                    # Variable to save measured X value
+Y_ARUCO_m     = []                    # Variable to save measured Y value
+Z_ARUCO_m     = []                    # Variable to save measured Z value
 NORTH_ARUCO_m = []                    # Variable to save measured Aruco marker NORTH value
 EAST_ARUCO_m  = []                    # Variable to save measured Aruco marker EAST value
-DOWN_ARUCO_m  = []                    # Variable to save measured Aruco marker DOWN value
-LAT_ARUCO_m   = []                    # Variable to save measured Aruco marker NORTH value
-LONG_ARUCO_m  = []                    # Variable to save measured Aruco marker EAST value
-ALT_ARUCO_m   = []                    # Variable to save measured Aruco marker DOWN value
+UP_ARUCO_m    = []                    # Variable to save measured Aruco marker UP value
+LAT_ARUCO_m   = []                    # Variable to save measured Aruco marker LAT value
+LONG_ARUCO_m  = []                    # Variable to save measured Aruco marker LONG value
+ALT_ARUCO_m   = []                    # Variable to save measured Aruco marker ALT value
 NORTH_DRONE_m = []                    # Variable to save measured drone NORTH value
 EAST_DRONE_m  = []                    # Variable to save measured drone EAST value
-DOWN_DRONE_m  = []                    # Variable to save measured drone DOWN value
+UP_DRONE_m    = []                    # Variable to save measured drone UP value
 PITCH_DRONE_m = []                    # Variable to save measured drone pitch value
 ROLL_DRONE_m  = []                    # Variable to save measured droneroll value
 YAW_DRONE_m   = []                    # Variable to save measured drone yaw value
@@ -109,18 +109,19 @@ FILT_E_PRED_m = []                    # Variable to save predicted Kalman filter
 FILT_N_UPD_m  = []                    # Variable to save updated Kalman filter NORTH value
 FILT_E_UPD_m  = []                    # Variable to save updated Kalman filter EAST value
 
-wp_id_KF      = 11                    # Waypoint ID for LAT, LONG from Kalman filter
-wp_id_RAW     = 9                     # Waypoint ID for LAT, LONG from Aruco detection
-
 NORTH_ARUCO   = 0                     # Define global variable for Aruco NORTH 
 EAST_ARUCO    = 0                     # Define global variable for Aruco EAST
-DOWN_ARUCO    = 0                     # Define global variable for Aruco DOWN
+UP_ARUCO      = 0                     # Define global variable for Aruco UP
 
 FILT_N        = 0                     # Define global variable for Kalman filter NORTH 
 FILT_E        = 0                     # Define global variable for Kalman filter EAST 
-FILT_D        = 0                     # Define global variable for Kalman filter DOWN 
+FILT_U        = 0                     # Define global variable for Kalman filter U 
 
 IS_FILT_INIT = False                  # Flag to check if Kalman filter is initialised 
+
+wp_id_KF      = 11                    # Waypoint ID for LAT, LONG from Kalman filter
+wp_id_RAW     = 9                     # Waypoint ID for LAT, LONG from Aruco detection
+
 
                                   # FUNCTIONS -> IVYBUS MESSAGES #
 # ------------------------------------------------------------------------------------------------------- #
@@ -141,14 +142,14 @@ def attitude_callback(ac_id, pprzMsg):
 def NED_callback(ac_id, pprzMsg):
     global NORTH_values
     global EAST_values
-    global DOWN_values
+    global UP_values
     
     NORTH_Drone  = pprzMsg['north']
     EAST_Drone   = pprzMsg['east']
-    DOWN_Drone   = pprzMsg['up']
+    UP_Drone     = pprzMsg['up']
     NORTH_values = NORTH_Drone
     EAST_values  = EAST_Drone
-    DOWN_values  = DOWN_Drone
+    UP_values    = UP_Drone
 
 # --------- Bind to Drone Latitude, Longitude, and Altitude Message --------- # 
 def ref_lat_long_alt_callback(ac_id, pprzMsg):
@@ -174,8 +175,8 @@ def get_attitude_values():
 def get_NED_values():
     global NORTH_values
     global EAST_values
-    global DOWN_values
-    return NORTH_values, EAST_values, DOWN_values
+    global UP_values
+    return NORTH_values, EAST_values, UP_values
 
 # --------- Get Reference Latitude, Longitude, and Altitude --------- # 
 def get_ref_lat_long_alt_values():
@@ -210,9 +211,9 @@ def NED_conversion(pitch, roll, yaw, Aruco_position):
 
     # --------- Obtain NED Coordinates ------- #
     NED_vector = np.dot(R, Aruco_position)
-    NORTH, EAST, DOWN = NED_vector.squeeze()
+    NORTH, EAST, UP = NED_vector.squeeze()
 
-    return NORTH, EAST, DOWN
+    return NORTH, EAST, UP
 
                                 # FUNCTION -> VISUALISE LEGEND #
 # ------------------------------------------------------------------------------------------------------- #
@@ -362,9 +363,9 @@ def visualizeLegend(frame_legend, width, height):
   lineThickness = 2
   frame_legend = cv2.putText(frame_legend, text, org, font, fontScale, color, lineThickness, cv2.LINE_AA)
 
-  # --------- Show Drone DOWN --------- # 
+  # --------- Show Drone UP --------- # 
   org = (int(0.03*width), int(0.86*height))
-  text = f"DOWN: "
+  text = f"UP: "
   font = cv2.FONT_HERSHEY_PLAIN
   fontScale = 1
   color = (255, 255, 255)
@@ -439,7 +440,7 @@ def visualiseArucoXYZMarkerPosition(X_visual, Y_visual, Z_visual, frame_pos, wid
     color_2 = (0, 0, 255)
   cv2.putText(frame_pos, text_2, org_2, font_2, fontScale_2, color_2, lineThickness_2, cv2.LINE_AA)
   
-  # --------- Aruco DOWN Visualisation --------- # 
+  # --------- Aruco Z Visualisation --------- # 
   org_3 = (int(0.11*width), int(0.09*height))
   text_3 = f" {round(Z_visual, 2)}[m]"
   font_3 = cv2.FONT_HERSHEY_PLAIN
@@ -630,7 +631,7 @@ def visualiseDroneAttitude(frame_attitude, width, height, pitch_visual, roll_vis
 
                                  # FUNCTION -> VISUALISE NED DRONE POSITION #
 # ------------------------------------------------------------------------------------------------------- #
-def visualiseDroneNEDPosition(NORTH_visual, EAST_visual, DOWN_visual, frame_pos, width, height):
+def visualiseDroneNEDPosition(NORTH_visual, EAST_visual, UP_visual, frame_pos, width, height):
   # --------- Drone NORTH Visualisation --------- # 
   if NORTH_visual >= 0:    # If postive NORTH value -> show green 
     org_3 = (int(0.11*width), int(0.78*height))
@@ -663,9 +664,9 @@ def visualiseDroneNEDPosition(NORTH_visual, EAST_visual, DOWN_visual, frame_pos,
     lineThickness_3 = 2
     cv2.putText(frame_pos, text_3, org_3, font_3, fontScale_3, (0, 0, 255), lineThickness_3, cv2.LINE_AA)
   
-  # --------- Drone DOWN Visualisation --------- # 
+  # --------- Drone UP Visualisation --------- # 
   org_3 = (int(0.11*width), int(0.86*height))
-  text_3 = f" {round(DOWN_visual, 2)}[m]"
+  text_3 = f" {round(UP_visual, 2)}[m]"
   font_3 = cv2.FONT_HERSHEY_PLAIN
   fontScale_3 = 1
   lineThickness_3 = 2
@@ -812,7 +813,7 @@ while(cap.isOpened()):
   PITCH_DRONE, ROLL_DRONE, YAW_DRONE = get_attitude_values()
   
   # --------- Get NED Values from Ivybus --------- # 
-  NORTH_DRONE, EAST_DRONE, DOWN_DRONE = get_NED_values()
+  NORTH_DRONE, EAST_DRONE, UP_DRONE = get_NED_values()
 
   # --------- Get LAT, LONG, and ALT Values from Ivybus --------- # 
   LAT_0, LONG_0, ALT_0 = get_ref_lat_long_alt_values()
@@ -860,15 +861,15 @@ while(cap.isOpened()):
 
       frame = visualiseDroneAttitude(frame, resized_frame_width, resized_frame_height, PITCH_DRONE, ROLL_DRONE, YAW_DRONE)
 
-    # --------- Save, Print, and Show Drone NORTH, EAST, and DOWN --------- # 
+    # --------- Save, Print, and Show Drone NORTH, EAST, and UP --------- # 
     if NORTH_DRONE is not None:
       NORTH_DRONE = float(NORTH_DRONE)
       EAST_DRONE  = float(EAST_DRONE)
-      DOWN_DRONE  = float(DOWN_DRONE)
+      UP_DRONE    = float(UP_DRONE)
 
       NORTH_DRONE = NORTH_DRONE*pprz_NED_conversion
       EAST_DRONE  = EAST_DRONE*pprz_NED_conversion
-      DOWN_DRONE  = DOWN_DRONE*pprz_NED_conversion 
+      UP_DRONE    = UP_DRONE*pprz_NED_conversion 
 
       NORTH_DRONE_m.append(NORTH_DRONE) # Save measured drone NORTH
       print(f"Drone NORTH: {NORTH_DRONE}")
@@ -876,11 +877,11 @@ while(cap.isOpened()):
       EAST_DRONE_m.append(EAST_DRONE)   # Save measured drone EAST
       print(f"Drone EAST: {EAST_DRONE}")      
       
-      DOWN_DRONE_m.append(DOWN_DRONE)   # Save measured drone DOWN
-      print(f"Drone DOWN: {DOWN_DRONE}")
+      UP_DRONE_m.append(UP_DRONE)   # Save measured drone UP
+      print(f"Drone UP: {UP_DRONE}")
       
       # --------- Visualise NED Drone Position --------- # 
-      frame = visualiseDroneNEDPosition(NORTH_DRONE, EAST_DRONE, DOWN_DRONE, frame, resized_frame_width, resized_frame_height)
+      frame = visualiseDroneNEDPosition(NORTH_DRONE, EAST_DRONE, UP_DRONE, frame, resized_frame_width, resized_frame_height)
 
     # --------- FLAG -> Aruco Marker Not Detected --------- # 
     DETECTION = 0
@@ -932,24 +933,24 @@ while(cap.isOpened()):
         ARUCO_POSITION_B = np.array([[X_ARUCO_B], [Y_ARUCO_B], [Z_ARUCO_B]])
 
         # --------- Convert Aruco Position in Image Coordinates to NED Coordinates Relative to Drone --------- # 
-        NORTH_REL, EAST_REL, DOWN_REL = NED_conversion(PITCH_DRONE, ROLL_DRONE, YAW_DRONE, ARUCO_POSITION_B)
+        NORTH_REL, EAST_REL, UP_REL = NED_conversion(PITCH_DRONE, ROLL_DRONE, YAW_DRONE, ARUCO_POSITION_B)
 
         # --------- NED Aruco Marker Position --------- # 
         if NORTH_DRONE is not None:
           # --------- NED Relative and NED Drone Summation --------- # 
           NORTH_ARUCO = NORTH_REL + NORTH_DRONE
           EAST_ARUCO  = EAST_REL + EAST_DRONE
-          DOWN_ARUCO  = DOWN_REL + DOWN_DRONE
+          UP_ARUCO    = UP_REL                     # Application based decision -> take Aruco relative UP value (Z not relevant)  
 
-          # --------- Save and Print Aruco Marker NORTH, EAST, and DOWN --------- # 
+          # --------- Save and Print Aruco Marker NORTH, EAST, and UP --------- # 
           NORTH_ARUCO_m.append(NORTH_ARUCO)        # Save measured Aruco Marker NORTH
           print(f"Aruco NORTH: {NORTH_ARUCO}")
 
           EAST_ARUCO_m.append(EAST_ARUCO)          # Save measured Aruco Marker EAST
           print(f"Aruco EAST: {EAST_ARUCO}")
 
-          DOWN_ARUCO_m.append(DOWN_ARUCO)          # Save measured Aruco Marker DOWN
-          print(f"Aruco DOWN: {DOWN_ARUCO}")
+          UP_ARUCO_m.append(UP_ARUCO)              # Save measured Aruco Marker UP
+          print(f"Aruco UP: {UP_ARUCO}")
 
           # --------- Visualise NED Aruco Marker Position --------- # 
           frame = visualiseArucoNEDMarkerPosition(NORTH_ARUCO, EAST_ARUCO, frame, resized_frame_width, resized_frame_height)
@@ -968,7 +969,7 @@ while(cap.isOpened()):
 
       FILT_N = float(FILT_N)
       FILT_E = float(FILT_E)
-      FILT_D = DOWN_ARUCO
+      FILT_U = UP_ARUCO
 
       FILT_N_PRED_m.append(FILT_N)
       FILT_E_PRED_m.append(FILT_E)
@@ -976,14 +977,14 @@ while(cap.isOpened()):
     if DETECTION == 1:
       if not IS_FILT_INIT:
         # --------- FILTER INITIALISATION --------- # 
-        init([NORTH_ARUCO, EAST_DRONE, DOWN_ARUCO])
+        init([NORTH_ARUCO, EAST_DRONE, UP_ARUCO])
         IS_FILT_INIT = True
       else:
         # --------- UPDATE STEP --------- # 
-        NED_UPD = update([NORTH_ARUCO, EAST_ARUCO, DOWN_ARUCO])
+        NED_UPD = update([NORTH_ARUCO, EAST_ARUCO, UP_ARUCO])
         FILT_N = NED_UPD[0]
         FILT_E = NED_UPD[1]
-        FILT_D = DOWN_ARUCO 
+        FILT_U = UP_ARUCO 
 
         FILT_N = float(FILT_N)
         FILT_E = float(FILT_E)
@@ -997,7 +998,7 @@ while(cap.isOpened()):
     # --------- RAW MEASUREMENTS --------- # 
     FILT_N_RAW = NORTH_ARUCO
     FILT_E_RAW = EAST_ARUCO
-    FILT_D_RAW = DOWN_ARUCO
+    FILT_U_RAW = UP_ARUCO
 
     # --------- Convert To LAT, LONG, and ALT Aruco Marker Position and Move Waypoint --------- #
     if LAT_0 is not None: 
@@ -1019,13 +1020,13 @@ while(cap.isOpened()):
       print(f"Drone Altitude0: {ALT_0}")
             
       # --------- Conversion --------- #
-      LAT_ARUCO, LONG_ARUCO, _         = pymap3d.ned2geodetic(FILT_N, FILT_E, FILT_D, LAT_0, LONG_0, ALT_0)
-      LAT_ARUCO_RAW, LONG_ARUCO_RAW, _ = pymap3d.ned2geodetic(FILT_N_RAW, FILT_E_RAW, FILT_D_RAW, LAT_0, LONG_0, ALT_0)
+      LAT_ARUCO, LONG_ARUCO, _         = pymap3d.ned2geodetic(FILT_N, FILT_E, FILT_U, LAT_0, LONG_0, ALT_0)
+      LAT_ARUCO_RAW, LONG_ARUCO_RAW, _ = pymap3d.ned2geodetic(FILT_N_RAW, FILT_E_RAW, FILT_U_RAW, LAT_0, LONG_0, ALT_0)
 
-      # --------- Altitude --------- #
-      ALT_ARUCO = 167.85  # Check GCS Alt and manually fill in reference altitude
+      # --------- Altitude -> Aldenhoven Testing Centre Specific (42m AGL) --------- #
+      ALT_ARUCO = 167.85                       # Check GCS Alt in Paparazzi by clicking on standby waypoint and manually fill in reference altitude
 
-      # --------- Save and Print Aruco Marker NORTH, EAST, and DOWN --------- # 
+      # --------- Save and Print Aruco Marker NORTH, EAST, and UP --------- # 
       LAT_ARUCO_m.append(LAT_ARUCO)            # Save measured Aruco Marker LATITUDE
       print(f"Aruco Latitude: {LAT_ARUCO}")
 
@@ -1081,9 +1082,9 @@ while(cap.isOpened()):
 #     writer=csv.writer(csvfile, delimiter=',')
 #     writer.writerows(zip(EAST_ARUCO_m, time_m))
 
-# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/IMAV_09_09_23_TEST1_ArucoDOWN_V1_1', 'w') as csvfile:
+# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/IMAV_09_09_23_TEST1_ArucoUP_V1_1', 'w') as csvfile:
 #     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(DOWN_ARUCO_m, time_m))
+#     writer.writerows(zip(UP_ARUCO_m, time_m))
 
 # with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/IMAV_09_09_23_TEST1_ArucoLAT_V1_1', 'w') as csvfile:
 #     writer=csv.writer(csvfile, delimiter=',')
@@ -1117,9 +1118,9 @@ while(cap.isOpened()):
 #     writer=csv.writer(csvfile, delimiter=',')
 #     writer.writerows(zip(EAST_DRONE_m, time_m))
 
-# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/IMAV_09_09_23_TEST1_DroneDOWN_V1_1', 'w') as csvfile:
+# with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/IMAV_09_09_23_TEST1_DroneUP_V1_1', 'w') as csvfile:
 #     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(DOWN_DRONE_m, time_m))
+#     writer.writerows(zip(UP_DRONE_m, time_m))
 
 # with open('/home/kevin/IMAV2023/Measured_Variables/Outdoor_Tests/IMAV_09_09_23_TEST1_DroneLAT_V1_1', 'w') as csvfile:
 #     writer=csv.writer(csvfile, delimiter=',')
@@ -1153,9 +1154,9 @@ with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST3_ArucoEAST_V3',
     writer=csv.writer(csvfile, delimiter=',')
     writer.writerows(zip(EAST_ARUCO_m, time_m))
 
-with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST3_ArucoDOWN_V3', 'w') as csvfile:
+with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST3_ArucoUP_V3', 'w') as csvfile:
     writer=csv.writer(csvfile, delimiter=',')
-    writer.writerows(zip(DOWN_ARUCO_m, time_m))
+    writer.writerows(zip(UP_ARUCO_m, time_m))
 
 with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST3_ArucoLAT_V3', 'w') as csvfile:
     writer=csv.writer(csvfile, delimiter=',')
@@ -1205,9 +1206,9 @@ with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST3_DroneEAST_V3',
     writer=csv.writer(csvfile, delimiter=',')
     writer.writerows(zip(EAST_DRONE_m, time_m))
 
-with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST3_DroneDOWN_V3', 'w') as csvfile:
+with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST3_DroneUP_V3', 'w') as csvfile:
     writer=csv.writer(csvfile, delimiter=',')
-    writer.writerows(zip(DOWN_DRONE_m, time_m))
+    writer.writerows(zip(UP_DRONE_m, time_m))
 
 with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST3_DroneLAT_V3', 'w') as csvfile:
     writer=csv.writer(csvfile, delimiter=',')
@@ -1242,9 +1243,9 @@ with open('./Measured_Variables/Outdoor_Tests/IMAV_13_09_23_TEST3_DroneALT_V3', 
 #     writer=csv.writer(csvfile, delimiter=',')
 #     writer.writerows(zip(EAST_Aruco_m, time_m))
 
-# with open('~/IMAV2023/Measured_Variables/Indoor_Tests/TEST1_DOWN_V1', 'w') as csvfile:
+# with open('~/IMAV2023/Measured_Variables/Indoor_Tests/TEST1_UP_V1', 'w') as csvfile:
 #     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(DOWN_Aruco_m, time_m))
+#     writer.writerows(zip(UP_Aruco_m, time_m))
 
 # with open('~/IMAV2023/Measured_Variables/Indoor_Tests/TEST1_Pitch_V1', 'w') as csvfile:
 #     writer=csv.writer(csvfile, delimiter=',')
