@@ -2,7 +2,7 @@ from scipy import interpolate
 import matplotlib.pyplot as plt
 import numpy as np
 
-from filterV1 import init, predict, update
+from KalmanFilter_V1 import init, predict, update
 
 # READ LOGFILES
 

@@ -3,7 +3,8 @@
 # Date:             13/09/23
 # Affiliation:      TU Delft, IMAV 2023
 #
-# Version:          3.0 
+# Version:          3.0 (Tested)
+#  
 # 
 # Description:  
 # - Detect Aruco markers and estimate Aruco marker position from real-time video stream
@@ -13,6 +14,9 @@
 # - Applying Kalman filter to NED values to get smooth waypoint moving (very special thanks to Christophe de Wagter)
 # - Convert Aruco marker position to latitude, longitude, and altitude
 # - Moving waypoint to Aruco marker position in latitude, longitude, and altitude 
+#
+# Updates: 
+# - Bug fixes to avoid crashing 
 #
 #  -------------------------------------------------------------------------
 
@@ -28,7 +32,7 @@ import pymap3d
 import cv2.aruco
 import threading
 import numpy as np
-from filterV1 import init, predict, update, route
+from KalmanFilter_V1 import init, predict, update, route
 
 # --------- Ivybus Specific --------- # 
 sys.path.append("/home/kevin/paparazzi/sw/ext/pprzlink/lib/v2.0/python/")

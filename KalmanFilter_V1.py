@@ -1,11 +1,12 @@
+                                        # LIBRARY DEFINITION #
+# ------------------------------------------------------------------------------------------------------- #
 from scipy import interpolate
 import matplotlib.pyplot as plt
 import numpy as np
 
-
-#############################################################################
-## Smooth track
-
+                                          # SPLINED TRACKS #
+# ------------------------------------------------------------------------------------------------------- #
+# --------- Aldenhoven Testing Centre Track --------- # 
 racetrack_at_competition = np.asarray([-31.9311054713794,
 271.783338767474,
 -32.0712612077143,
@@ -49,6 +50,7 @@ racetrack_at_competition = np.asarray([-31.9311054713794,
 -31.9311054713794,
 271.783338767474])
 
+# --------- Belgium Testing Track --------- # 
 test_field_track = np.asarray([-81.9,
 133.7,
 -43.4,
@@ -62,9 +64,11 @@ test_field_track = np.asarray([-81.9,
 -81.9,
 133.7])
 
+# --------- Select Track --------- # 
 y = racetrack_at_competition
 # y = test_field_track
 
+# --------- Spline Track --------- # 
 n = len(y)
 y = y.reshape((int(n/2),2))
 n = len(y)
@@ -73,13 +77,14 @@ x = range(0, n)
 tck1 = interpolate.splrep(x, y[:,0], s=0.001, k=3)
 tck2 = interpolate.splrep(x, y[:,1], s=0.001, k=3)
 
-# 10000 = 4m/s
-x_new = np.linspace(min(x), max(x), 1500)
+x_new = np.linspace(min(x), max(x), 1500)  # Important value -> 10000 = 4 m/s
 y_fitx = interpolate.BSpline(*tck1)(x_new)
 y_fity = interpolate.BSpline(*tck2)(x_new)
 
 fit = np.vstack((y_fitx, y_fity)).T
 
+                  # FUNCTIONS -> FIND CLOSEST POINT TO DRONE FROM SPLINED TRACK #
+# ------------------------------------------------------------------------------------------------------- #
 def find_closest_point( P ):
     global fit
 
@@ -87,18 +92,20 @@ def find_closest_point( P ):
     closest_index = np.argmin(distances)
     return closest_index
 
-
+# --------- Track Starting Point --------- # 
 start = np.asarray([[-113.6], [67]])
 nr = find_closest_point(start)
 print('Start at:', nr)
 
+                                  # FUNCTIONS -> DEFINE ROUTE #
+# ------------------------------------------------------------------------------------------------------- #
 def route():
     global nr
     global y_fitx
     global y_fity
 
-    # Hack: move along the track blindly
-    nr -= 1
+    nr -= 1      # Hack: Move along the track blindly
+
     if nr <= 0:
         nr = len(y_fitx) - 1
 
@@ -106,6 +113,8 @@ def route():
 
     return zk
 
+                        # FUNCTIONS -> DETERMINE DISTANCE TO POINT IN SPLINED TRACK #
+# ------------------------------------------------------------------------------------------------------- #
 def determine_distance():
     global fit
     dist = 0
@@ -114,22 +123,15 @@ def determine_distance():
 
     return dist
 
-
-#############################################################################
-## Kalman filter stuff
-
+                                        # KALMAN FILTER #
+# ------------------------------------------------------------------------------------------------------- #
 x = np.asarray([start[0][0],
                 start[1][0],
                 0,
                 0])
 
-
 H = np.asarray([[1,  0, 0 ,0],
                 [0,  1, 0 ,0]] )
-
-
-# print('A',A)
-# print('H',H)
 
 K0 = 1e5
 Kp = 1
@@ -147,15 +149,8 @@ P = np.asarray([[K0, 0, 0, 0],
                 [0, 0,  0, 0],
                 [0, 0,  0, 0]])
 
-
-#print('P', P)
-#print('Q', Q)
-#print('R', R)
-
-KP = 0.6
+KP = 0.6    # Important value -> Defines gain/aggresiveness of filter (higher value = measurements trusted more and vice versa)
 KV = 0.01
-
-
 
 def init( X0 ):
     global x
@@ -169,9 +164,7 @@ def init( X0 ):
                 [0],
                 [0]])
     
-    print('X0 set to:', x)
-
-
+    print('x0 set to:', x)
 
 vision_update_counter = 0
 
@@ -209,10 +202,7 @@ def predict(dt):
         # Update the filter as if we were following the track
         update(z, True)
 
-
     return x
-
-
 
 def update(Z, route=False):
     global x
@@ -228,22 +218,12 @@ def update(Z, route=False):
 
     zk = np.asarray([[Z[0]],
                      [Z[1]]])
-    #print('z',zk)
     yk = zk - H@x
     S = H @ P @ H.T + R
-    #print('S',S)
     #Si = np.linalg.inv(S)
-    #print('S-1',Si)
     #K = (P @ H.T) @ Si
     K = np.asarray([[KP, 0],[0, KP],[KV, 0],[0, KV]])
-    #print('K',K)
     x = x + (K @ yk)
-    #print('K*yk',K @ yk)
     P = (np.eye(4) - (K @ H)) @ P
-    #print('P',P)
 
     return x
-
-
-
-
