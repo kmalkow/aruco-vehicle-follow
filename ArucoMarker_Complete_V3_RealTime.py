@@ -28,6 +28,7 @@ import math
 import csv
 import sys
 import cv2
+import signal
 import pymap3d
 import cv2.aruco
 import threading
