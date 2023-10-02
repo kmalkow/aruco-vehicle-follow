@@ -1272,7 +1272,7 @@ while(cap.isOpened()):
 # --------- Release/Stop Objects --------- # 
 cap.release()
 out.release()
-ivy.shutdown()
+# ivy.shutdown()
 
 # --------- Close Frames --------- # 
 cv2.destroyAllWindows()
