@@ -63,7 +63,8 @@ import pprzlink.message as message
 
                                       # LOAD CAMERA PARAMETERS #
 # ------------------------------------------------------------------------------------------------------- #
-pathLoad = './CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w1152_h648_HERELINKV2.xml'
+# pathLoad = './CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w1152_h648_HERELINKV2.xml'
+pathLoad = './CameraCalibration_Variables/Videos/MAPIR_cameraCalibration_Video_w640_h480.xml'
 cv_file = cv2.FileStorage(pathLoad, cv2.FILE_STORAGE_READ)
 camera_Matrix = cv_file.getNode("cM").mat()
 distortion_Coeff = cv_file.getNode("dist").mat()
@@ -71,7 +72,7 @@ cv_file.release()
 
                                         # VARIABLE DEFINITION #
 # ------------------------------------------------------------------------------------------------------- #
-MARKER_SIZE              = 1.0        # Size of Aruco marker in [m] -> 1.107 [m]||0.35 [m]
+MARKER_SIZE              = 1.107        # Size of Aruco marker in [m] -> 1.107 [m]||0.35 [m]
 
 PITCH_values             = None       # Global variable to store Ivybus received pitch values
 ROLL_values              = None       # Global variable to store Ivybus received roll values
@@ -745,8 +746,9 @@ ac_id = input("Enter Aicraft ID: ")
                                               # VIDEO #
 # ------------------------------------------------------------------------------------------------------- #
 # --------- Load Video --------- #
-# cap = cv2.VideoCapture("rtsp://192.168.43.1:8554/fpv_stream") # Create a VideoCapture object (input is for herelink wifi connection)
-cap = cv2.VideoCapture("rtsp://192.168.42.129:8554/fpv_stream") # Create a VideoCapture object (input is for herelink bluetooth tethering)
+# cap = cv2.VideoCapture("rtsp://192.168.43.1:8554/fpv_stream")   # Create a VideoCapture object (input is for herelink wifi connection)
+# cap = cv2.VideoCapture("rtsp://192.168.42.129:8554/fpv_stream") # Create a VideoCapture object (input is for herelink bluetooth tethering)
+cap = cv2.VideoCapture(0)
 FPS = cap.get(cv2.CAP_PROP_FPS)                                 # Read FPS from input video
 
 if FPS == 0:
@@ -981,7 +983,7 @@ while(cap.isOpened()):
     if DETECTION == 1:
       if not IS_FILT_INIT:
         # --------- FILTER INITIALISATION --------- # 
-        init([NORTH_ARUCO, EAST_DRONE, UP_ARUCO])
+        init([NORTH_ARUCO, EAST_ARUCO, UP_ARUCO])
         IS_FILT_INIT = True
       else:
         # --------- UPDATE STEP --------- # 
@@ -1028,7 +1030,7 @@ while(cap.isOpened()):
       LAT_ARUCO_RAW, LONG_ARUCO_RAW, _ = pymap3d.ned2geodetic(FILT_N_RAW, FILT_E_RAW, FILT_U_RAW, LAT_0, LONG_0, ALT_0)
 
       # --------- Altitude -> Aldenhoven Testing Centre Specific (42m AGL) --------- #
-      ALT_ARUCO = 167.85                       # Check GCS Alt in Paparazzi by clicking on standby waypoint and manually fill in reference altitude
+      ALT_ARUCO = 25                       # Check GCS Alt in Paparazzi by clicking on standby waypoint and manually fill in reference altitude
 
       # --------- Save and Print Aruco Marker NORTH, EAST, and UP --------- # 
       LAT_ARUCO_m.append(LAT_ARUCO)            # Save measured Aruco Marker LATITUDE
@@ -1044,12 +1046,12 @@ while(cap.isOpened()):
       # --------- Visualise NED Aruco Marker Position --------- # 
       frame = visualiseArucoGeodeticMarkerPosition(LAT_ARUCO, LONG_ARUCO, ALT_ARUCO, frame, resized_frame_width, resized_frame_height)
 
-      # --------- Move Waypoint --------- #
-      move_waypoint_KF(ac_id, wp_id_KF, LAT_ARUCO, LONG_ARUCO, ALT_ARUCO)
-      move_waypoint_RAW(ac_id, wp_id_RAW, LAT_ARUCO_RAW, LONG_ARUCO_RAW, ALT_ARUCO)
+      # # --------- Move Waypoint --------- #
+      # move_waypoint_KF(ac_id, wp_id_KF, LAT_ARUCO, LONG_ARUCO, ALT_ARUCO)
+      # move_waypoint_RAW(ac_id, wp_id_RAW, LAT_ARUCO_RAW, LONG_ARUCO_RAW, ALT_ARUCO)
       
     # --------- Write Video --------- # 
-    out.write(frame)
+    # out.write(frame)
     
     # --------- Display Output Frame --------- # 
     cv2.imshow('Frame', frame)

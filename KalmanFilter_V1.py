@@ -64,8 +64,21 @@ test_field_track = np.asarray([-81.9,
 -81.9,
 133.7])
 
+# --------- Valkenburg Testing Track --------- # 
+valkenburg_track = np.asarray([10.2766958604546,
+17.1690562541347,
+40.9424685964964,
+30.0988525001902,
+50.2341861676278,
+0.946053855489006,
+23.7829369045678,
+-7.3437990762182,
+10.2766958604546,
+17.1690562541347])
+
 # --------- Select Track --------- # 
-y = racetrack_at_competition
+y = valkenburg_track
+# y = racetrack_at_competition
 # y = test_field_track
 
 # --------- Spline Track --------- # 
