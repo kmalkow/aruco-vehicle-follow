@@ -963,7 +963,7 @@ while(cap.isOpened()):
           
           # --------- FLAG -> Aruco Marker Detected --------- # 
           DETECTION = 1
-                                              KALMAN FILTER #
+                                            # KALMAN FILTER #
     # ------------------------------------------------------------------------------------------------------- #
     if IS_FILT_INIT:            # Check if KF is initialised
       dt = 1/FPS                # Set time step 
