@@ -4,10 +4,10 @@ from scipy import interpolate
 import matplotlib.pyplot as plt
 import numpy as np
 
-                                          # SPLINED TRACKS #
+                                # TRACK WAYPOINTS (LOCAL COORDINATES) #
 # ------------------------------------------------------------------------------------------------------- #
-# --------- Aldenhoven Testing Centre Track --------- # 
-racetrack_at_competition = np.asarray([-31.9311054713794,
+# --------- Aldenhoven Testing Centre Track (IMAV Competition) --------- # 
+IMAV_competition_track = np.asarray([-31.9311054713794,
 271.783338767474,
 -32.0712612077143,
 354.330707476033,
@@ -51,7 +51,7 @@ racetrack_at_competition = np.asarray([-31.9311054713794,
 271.783338767474])
 
 # --------- Belgium Testing Track --------- # 
-test_field_track = np.asarray([-81.9,
+BELGIUM_test_track = np.asarray([-81.9,
 133.7,
 -43.4,
 80.7,
@@ -65,7 +65,7 @@ test_field_track = np.asarray([-81.9,
 133.7])
 
 # --------- Valkenburg Testing Track --------- # 
-valkenburg_track = np.asarray([10.2766958604546,
+VALKENBURG_track = np.asarray([10.2766958604546,
 17.1690562541347,
 40.9424685964964,
 30.0988525001902,
@@ -77,9 +77,9 @@ valkenburg_track = np.asarray([10.2766958604546,
 17.1690562541347])
 
 # --------- Select Track --------- # 
-y = valkenburg_track
-# y = racetrack_at_competition
-# y = test_field_track
+y = VALKENBURG_track
+# y = IMAV_competition_track
+# y = BELGIUM_test_track
 
 # --------- Spline Track --------- # 
 n = len(y)
@@ -87,84 +87,98 @@ y = y.reshape((int(n/2),2))
 n = len(y)
 x = range(0, n)
 
-tck1 = interpolate.splrep(x, y[:,0], s=0.001, k=3)
-tck2 = interpolate.splrep(x, y[:,1], s=0.001, k=3)
+trackx = interpolate.splrep(x, y[:,0], s=0.001, k=3)
+tracky = interpolate.splrep(x, y[:,1], s=0.001, k=3)
 
 x_new = np.linspace(min(x), max(x), 1500)  # Important value -> 10000 = 4 m/s
-y_fitx = interpolate.BSpline(*tck1)(x_new)
-y_fity = interpolate.BSpline(*tck2)(x_new)
+y_splinedx = interpolate.BSpline(*trackx)(x_new)
+y_splinedy = interpolate.BSpline(*tracky)(x_new)
 
-fit = np.vstack((y_fitx, y_fity)).T
+splined = np.vstack((y_splinedx, y_splinedy)).T
 
                   # FUNCTIONS -> FIND CLOSEST POINT TO DRONE FROM SPLINED TRACK #
 # ------------------------------------------------------------------------------------------------------- #
 def find_closest_point( P ):
-    global fit
+    global splined
 
-    distances = np.sqrt((fit[:, 1] - P[0])**2 + (fit[:, 0] - P[1])**2)
+    distances = np.sqrt((splined[:, 1] - P[0])**2 + (splined[:, 0] - P[1])**2)
     closest_index = np.argmin(distances)
+    
     return closest_index
-
-# --------- Track Starting Point --------- # 
-start = np.asarray([[-113.6], [67]])
-nr = find_closest_point(start)
-print('Start at:', nr)
-
                                   # FUNCTIONS -> DEFINE ROUTE #
 # ------------------------------------------------------------------------------------------------------- #
 def route():
     global nr
-    global y_fitx
-    global y_fity
+    global y_splinedx
+    global y_splinedy
 
-    nr -= 1      # Hack: Move along the track blindly
+    nr -= 1      # Hack: Move along the track blindly (opposite to car direction of movement)
 
     if nr <= 0:
-        nr = len(y_fitx) - 1
+        nr = len(y_splinedx) - 1
 
-    zk = [y_fity[nr], y_fitx[nr], 0, 0 ]
+    # Set measurements to splined track NORTH, EAST
+    zk = [y_splinedy[nr], y_splinedx[nr], 0, 0]
 
     return zk
 
-                        # FUNCTIONS -> DETERMINE DISTANCE TO POINT IN SPLINED TRACK #
+#                         # FUNCTIONS -> DETERMINE DISTANCE TO POINT IN SPLINED TRACK #
+# # ------------------------------------------------------------------------------------------------------- #
+# def determine_distance():
+#     global splined
+    
+#     dist = 0
+#     for i in range(splined.shape[0]-1):
+#         dist += np.sqrt((splined[i, 1] - splined[i+1, 1])**2 + (splined[i, 0] - splined[i+1, 0])**2)
+
+#     return dist
+
+                                        # LINEAR KALMAN FILTER #
 # ------------------------------------------------------------------------------------------------------- #
-def determine_distance():
-    global fit
-    dist = 0
-    for i in range(fit.shape[0]-1):
-        dist += np.sqrt((fit[i, 1] - fit[i+1, 1])**2 + (fit[i, 0] - fit[i+1, 0])**2)
+# --------- Starting Point --------- # 
+start = np.asarray([[-113.6], [67]])
+nr = find_closest_point(start)
+print('------ Tracking Algorithm (Kalman Filter) ------')
+print('Start splined track at:', nr)
 
-    return dist
-
-                                        # KALMAN FILTER #
-# ------------------------------------------------------------------------------------------------------- #
-x = np.asarray([start[0][0],
-                start[1][0],
-                0,
-                0])
-
+# --------- Measurement Model --------- # 
+# Define measurement matrix
 H = np.asarray([[1,  0, 0 ,0],
                 [0,  1, 0 ,0]] )
 
-K0 = 1e5
+# --------- Process Noise Model --------- # 
 Kp = 1
 Kv = 0.0001
 Kpv = 0
-Km = 1e5
 
+# Define process input noise matrix
 Q = np.asarray([[Kp, 0, Kpv, 0],
                 [0, Kp, 0, Kpv],
                 [Kpv, 0, Kv, 0],
                 [0, Kpv, 0 ,Kv]])
-R = np.asarray([[Km],[Km]])
+
+# --------- Measurement Noise Model --------- # 
+Km = 1e5
+
+# Define measurement noise matrix
+R = np.asarray([[Km], [Km]])
+
+# --------- Initialisation --------- # 
+# Initialise state vector to splined track (x = [NORTH EAST 0 0]^T) -> IF NO DETECTION
+x = np.asarray([start[0][0],
+                start[1][0],
+                0,
+                0])
+print('NO DETECTION -> States initialised to:', x)
+
+# Initialise covariance matrix
+K0 = 1e5
 P = np.asarray([[K0, 0, 0, 0],
                 [0, K0, 0, 0],
                 [0, 0,  0, 0],
                 [0, 0,  0, 0]])
 
-KP = 0.6    # Important value -> Defines gain/aggresiveness of filter (higher value = measurements trusted more and vice versa)
-KV = 0.01
-
+# Initialise state vector to aruco marker position (x = [NORTH EAST 0 0]^T) -> IF DETECTION
 def init( X0 ):
     global x
 
@@ -177,8 +191,9 @@ def init( X0 ):
                 [0],
                 [0]])
     
-    print('x0 set to:', x)
+    print('DETECTION -> States initialised to:', x)
 
+# --------- Prediction Step --------- # 
 vision_update_counter = 0
 
 def predict(dt):
@@ -188,34 +203,45 @@ def predict(dt):
     global vision_update_counter
     global nr
 
-    # Do Kalman predict
-    A = np.asarray([[1,  0,  dt,  0],
+    # --------- Process Model --------- # 
+    F = np.asarray([[1,  0,  dt,  0],
                     [0,  1,  0,   dt],
                     [0,  0,  1,   0],
                     [0,  0,  0,   1]] )
+    
+    # --- STEP 1: Predicted (a-priori) state estimate
+    x = F @ x
 
-    x = A @ x
-    P = ((A @ P) @ A.T) + Q
+    # --- STEP 2: Predicted (a-priori) covariance estimate
+    P = ((F @ P) @ F.T) + Q
 
-    # Keep track of the number of predictions since the last update
+    # --------- Timeout Handling (No ArUco Marker Detection) --------- # 
+    # Keep track of the no. of predictions since the last update
     vision_update_counter += 1
 
-    # On timeout, predict that the car follows the track
+    # Set timeout interval
     TIMEOUT_SEC = 5
     FPS = 15
-    if vision_update_counter == (TIMEOUT_SEC * FPS):
-        # For every ArUco: update the track to the closest point
-        nr = find_closest_point(x)
-        print(nr)
 
+    # At timeout
+    if vision_update_counter == (TIMEOUT_SEC * FPS):
+        # Find closest point on splined track to last known arUco marker position
+        nr = find_closest_point(x)
+        print('Prediction Step Timeout -> Closest point:', nr)
+
+    # After timeout
     if vision_update_counter >= (TIMEOUT_SEC * FPS):
-        # Get the next position on the route as the next measurement
+        # Get the next position on the splined track as the next measurement
         z = route()
 
         # Update the filter as if we were following the track
         update(z, True)
 
     return x
+
+# --------- Update Step --------- # 
+KP = 0.6    # Important value -> Defines gain/aggresiveness of filter (higher value = measurements trusted more and vice versa)
+KV = 0.01
 
 def update(Z, route=False):
     global x
@@ -226,17 +252,29 @@ def update(Z, route=False):
     global KV
     global vision_update_counter
 
+    # If using arUco marker position as measurement for update -> set no. of predictions counter to 0
     if not route:
         vision_update_counter = 0
 
+    # Set measurements to arUco marker NORTH, EAST
     zk = np.asarray([[Z[0]],
                      [Z[1]]])
-    yk = zk - H@x
+    
+    # --- STEP 3: Innovation
+    yk = zk - (H @ x)
+    
+    # --- STEP 4: Innovation covariance
     S = H @ P @ H.T + R
+
+    # --- STEP 5: Kalman gain
     #Si = np.linalg.inv(S)
     #K = (P @ H.T) @ Si
     K = np.asarray([[KP, 0],[0, KP],[KV, 0],[0, KV]])
+
+    # --- STEP 6: Updated (a-priori) state estimate
     x = x + (K @ yk)
+    
+    # --- STEP 7: Updated (a-priori) covariance estimate
     P = (np.eye(4) - (K @ H)) @ P
 
     return x

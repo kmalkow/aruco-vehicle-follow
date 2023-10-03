@@ -894,9 +894,7 @@ while(cap.isOpened()):
     if len(markerCorners) > 0: # At least one marker detected
       # --------- Aruco Marker Pose Estimation --------- # 
       rvec, tvec, _ = cv2.aruco.estimatePoseSingleMarkers(markerCorners, MARKER_SIZE, camera_Matrix, distortion_Coeff)
-      
-      # (rvec - tvec).any()    # Remove Numpy value array error
-         
+               
       # --------- Save and Print X, Y, and Z --------- # 
       try:
         X_ARUCO = tvec[0][0][0]
